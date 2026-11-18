@@ -4,11 +4,11 @@
 
 ## Read-only recording search — tested
 
-The NVR responds to **HTTP POST** at \`/netsdk/R.SearchRecord\`. Its saved browser client issues a JSON request with a \`DEV\`/\`VER\`/\`API\` envelope and a \`Parameter\` object. A live test with the same structure returned an \`Item\` array of recording entries. This is **verified**, not merely a string found in the firmware.
+The NVR responds to **HTTP POST** at `/netsdk/R.SearchRecord`. Its saved browser client issues a JSON request with a `DEV`/`VER`/`API` envelope and a `Parameter` object. A live test with the same structure returned an `Item` array of recording entries. This is **verified**, not merely a string found in the firmware.
 
-Replace \`192.168.1.100\` with your NVR address, and choose a day on which recordings exist. The command prompts for the NVR admin password; it does not put the password directly into shell history:
+Replace `192.168.1.100` with your NVR address, and choose a day on which recordings exist. The command prompts for the NVR admin password; it does not put the password directly into shell history:
 
-\`\`\`bash
+```bash
 curl --max-time 15 -sS \
   --basic --user admin \
   -H 'Content-Type: application/json' \
@@ -29,13 +29,13 @@ curl --max-time 15 -sS \
       "Reload": "True"
     }
   }' | python3 -m json.tool
-\`\`\`
+```
 
-- This example searches the **first of eight NVR channels** (the API returned \`"Channel":"0"\` for this physical first channel). A channel selector is an **array of string booleans**, not JSON booleans.
-- The \`Type\` filter has three string entries as observed in the saved web client; it is **not** interchangeable with the per-record \`Type\` codes returned by the API.
-- \`PageSize\` and \`CurrentPage\` control pagination. Live responses contained \`Item\`, \`ReadCnt\`, \`SearchCnt\` and recording metadata.
-- Recorded item fields included \`ID\`, \`Channel\`, \`Type\`, \`Disk\`, \`TotalSize\`, \`TimeStart\` and \`TimeEnd\`. These timestamps were Unix seconds represented as strings.
-- In the web client's display logic, recording \`Type\` values are \`1\` (Timing), \`2\` (Motion), \`4\` (Alarm) and \`8\` (Manual). Do not assume every model uses the same categories.
+- This example searches the **first of eight NVR channels** (the API returned `"Channel":"0"` for this physical first channel). A channel selector is an **array of string booleans**, not JSON booleans.
+- The `Type` filter has three string entries as observed in the saved web client; it is **not** interchangeable with the per-record `Type` codes returned by the API.
+- `PageSize` and `CurrentPage` control pagination. Live responses contained `Item`, `ReadCnt`, `SearchCnt` and recording metadata.
+- Recorded item fields included `ID`, `Channel`, `Type`, `Disk`, `TotalSize`, `TimeStart` and `TimeEnd`. These timestamps were Unix seconds represented as strings.
+- In the web client's display logic, recording `Type` values are `1` (Timing), `2` (Motion), `4` (Alarm) and `8` (Manual). Do not assume every model uses the same categories.
 - This call **searches metadata only**. It does not retrieve the recording file or initiate playback.
 
 For machines where no administrator password is configured, the behaviour may differ, but deliberately avoid publishing an unauthenticated NVR to the internet.
@@ -44,13 +44,13 @@ For machines where no administrator password is configured, the behaviour may di
 
 | Function | Path or transport | Evidence status |
 | --- | --- | --- |
-| Recording search | \`POST /netsdk/R.SearchRecord\` | **Verified with actual NVR** |
-| Recording configuration | \`/netsdk/Record\` | Found in client code; do not assume read/write operations are safe |
-| PTZ | \`POST /netsdk/Channel/PTZ\` | Found in client code; end-to-end control not yet verified |
-| WebSocket KP2P | \`ws://192.168.1.100:10000/\` | **Local connection/login observed** |
-| NVR browser management | \`http://192.168.1.100/\` | Management UI works; old playback plugin is obsolete on Linux |
+| Recording search | `POST /netsdk/R.SearchRecord` | **Verified with actual NVR** |
+| Recording configuration | `/netsdk/Record` | Found in client code; do not assume read/write operations are safe |
+| PTZ | `POST /netsdk/Channel/PTZ` | Found in client code; end-to-end control not yet verified |
+| WebSocket KP2P | `ws://192.168.1.100:10000/` | **Local connection/login observed** |
+| NVR browser management | `http://192.168.1.100/` | Management UI works; old playback plugin is obsolete on Linux |
 
-The saved JavaScript uses \`apip2p.connectbyip(conn, ip, "10000")\`, \`apip2p.replay_start()\` and \`apip2p.onrecvrecframe()\`. A separate WebSocket login/handshake is required: a plain HTTP GET to port 10000 is **not** the correct protocol.
+The saved JavaScript uses `apip2p.connectbyip(conn, ip, "10000")`, `apip2p.replay_start()` and `apip2p.onrecvrecframe()`. A separate WebSocket login/handshake is required: a plain HTTP GET to port 10000 is **not** the correct protocol.
 
 ## Video data / recording playback
 
