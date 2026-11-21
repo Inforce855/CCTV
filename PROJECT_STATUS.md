@@ -95,7 +95,7 @@ Develop an **independent Linux CCTV server** with a **modern browser-based full 
 ## Read-only gateway (21 November 2026)
 
 - Added [gateway.py](gateway.py) with loopback JSON endpoints for disk and camera status and paginated recording metadata. It uses the verified NVR calls documented in [NVR_API.md](docs/NVR_API.md).
-- Local HTTP integration checks passed against a mock NVR, covering authenticated requests, camera ID joins, empty drive slots, recording query validation and upstream failure. A live gateway run still requires a host on the NVR LAN.
+- Local HTTP integration checks passed against a mock NVR, covering authenticated requests, camera ID joins, empty drive slots, recording query validation and upstream failure. Live smoke test passed from Nobara on the NVR LAN on 21 November 2026. Status returned one drive and four enabled, connected cameras reporting recording. Channel 1 recording search returned 12 rows from 63 matches, including timed and motion recordings.
 - The private Operation De-Hulk capture was recovered and reconstructed byte for byte against the known-good HEVC output. It is available as an offline regression fixture for the continuous receiver.
 
 ## COMPLETED — REMAINING — NEXT ACTION
@@ -104,7 +104,7 @@ Develop an **independent Linux CCTV server** with a **modern browser-based full 
 
 **REMAINING:** Verify **interactive Linux shell** and runtime mounts when hardware access is next needed; establish on-demand SSH/Telnet only if safe without persistent changes; observe external cloud egress passively; develop continuous local stream receiver, full playback/download, complete browser interface and HA integration. Optional future task: identify feasible LUI/HDMI customisation.
 
-**NEXT ACTION:** Smoke-test the gateway endpoints from the NVR LAN, then build the continuous KP2P recording receiver using the private Operation De-Hulk fixture. Verify frame assembly and timestamp handling before integrating playback.
+**NEXT ACTION:** Build the continuous KP2P recording receiver using the private Operation De-Hulk fixture. Verify frame assembly and timestamp handling before integrating playback.
 
 ## Documentation and security rules
 
