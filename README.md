@@ -30,7 +30,7 @@ curl -fsS 'http://127.0.0.1:8080/api/recordings?date=2026-11-21&channel=1&page=1
 - `/api/status` returns disk usage and populated drive slots, plus camera inventory and current connection/recording indicators. Channel IDs in this response are zero-based.
 - `/api/recordings` takes the NVR’s calendar date, a one-based channel and a one-based page. Channel and page default to 1. Returned recording metadata retains the original NVR timestamps and zero-based channel numbering.
 
-Both routes passed local HTTP integration checks against a mock NVR. The gateway itself still needs a smoke test from the NVR’s LAN. Continuous playback is the next development milestone after that check.
+Both routes passed mock HTTP integration checks and a live smoke test from Nobara on the NVR LAN on 21 November 2026. Continuous recording playback is the next milestone.
 
 The original firmware, evidence bundles, footage, private endpoint credentials and unsanitised capture logs are not included in this repository. Historical investigation details and outstanding uncertainties are recorded in [PROJECT_STATUS.md](PROJECT_STATUS.md).
 
