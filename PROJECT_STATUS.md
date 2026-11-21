@@ -85,13 +85,20 @@ Develop an **independent Linux CCTV server** with a **modern browser-based full 
 - **Server API plus Home Assistant integration**: HA receives cameras/streams, snapshots, relevant status, events/alerts and playback links/actions; the direct web interface remains the full administrative experience. Do not duplicate the NVR's PoE switching, 3 TB local recording or ten-inch display.
 - **Implementation rule:** Review existing source and documented protocol tests before building. Preserve already working local HTTP/WebSocket recording search, HEVC keyframe reconstruction, and HA Generic Camera snapshots. Confirm each additional feature before claiming it implemented. Updates and changes belong in this repository, with dated status and README updates.
 
+## Offline startup and API evidence review (21 November 2026)
+
+- **Sources rechecked:** Existing [firmware analysis](docs/FIRMWARE_ANALYSIS.md), [NVR API evidence](docs/NVR_API.md), [camera HTTP API evidence](docs/CAMERA_HTTP_API.md) and the private Mission 12 firmware security audit. No repeat extraction, new device probing or firmware modification.
+- **Startup evidence:** The extracted root filesystem's four-line `/etc/inittab` executes `/bin/sh /etc/init.d/rcS`, configures loopback and contains `::respawn:-/bin/sh`. The documented `rcS` → `S99` startup chain starts the upgrade utility, mounts the application SquashFS under `/opt` and invokes `run_app.sh`. Combined with the now-confirmed physical `ttyS0` serial console, the shell respawn line makes a serial shell plausible **without any boot or firmware changes**. Actual interactive Linux shell access is **not yet demonstrated**; do not state it as completed.
+- **Local API coverage:** Verified on hardware: local HTTP/WebSocket connection, `R.SearchRecord` metadata query, HEVC keyframe reconstruction and brief playable sample; existing HA snapshot works. Found in source but not end-to-end verified: NVR/camera PTZ, other configuration endpoints, continuous stream receiver, complete recording playback/download, events and HA integration. Avoid claiming parity or implementing a parallel recording system.
+- **Decision:** No reason to take the NVR off-line for serial tests now. Primary development blocker for full web playback is the unimplemented continuous KP2P receive/reassembly and time-synchronised playback, not lack of root/SSH access. Preserve the proven API work and obtain its original private implementation/capture evidence before modifying code.
+
 ## COMPLETED — REMAINING — NEXT ACTION
 
 **COMPLETED:** Original discovery and HTTP snapshot path; local NVR HTTP/WebSocket/recording-search tests; playable HEVC sample reconstruction; firmware XOR decoding/extraction; static cloud, startup, hidden maintenance and LUI audits; **physical UART boot capture and interactive U-Boot access**; NVR restored to operation; independent-server/browser/HA project architecture agreed.
 
 **REMAINING:** Verify **interactive Linux shell** and runtime mounts when hardware access is next needed; establish on-demand SSH/Telnet only if safe without persistent changes; observe external cloud egress passively; develop continuous local stream receiver, full playback/download, complete browser interface and HA integration. Optional future task: identify feasible LUI/HDMI customisation.
 
-**NEXT ACTION:** With NVR back in service, review the already-extracted \`/linuxrc\`, \`/etc/inittab\` and startup scripts offline to determine how serial login is configured; then compare existing verified protocol functions with the agreed browser/HA requirements. Return to physical serial testing only when justified. **No firmware flashing, no remote VPN/router changes, no automatic SSH/Telnet startup.**
+**NEXT ACTION:** Locate and inspect the **existing private KP2P/WebSocket receiver and HEVC keyframe-reassembly implementation/capture evidence** from the verified 17–18 November tests; determine the precise outstanding requirement for continuous recording playback. Implement and test that missing function in the existing project before building the broader browser and HA layers. Serial Linux-shell checks are optional and deferred unless needed. **No firmware flashing, no remote VPN/router changes, no automatic SSH/Telnet startup.**
 
 ## Documentation and security rules
 
