@@ -79,6 +79,11 @@ The same live `GET /netsdk/Stat` response contained `IPC[]`. Zero-based IDs 0–
 
 Use the GET method for the storage check. The separate POST to `/netsdk/Stat` is used by the disk-format workflow.
 
+### Browser checks on the physical NVR
+
+- **Channel Detail** displayed configured main streams of 2880 × 1620 at 15 fps (3 or 5 Mbps by channel) and substreams of 800 × 448 at 15 fps (512 kbps) on all four connected cameras. Unused slots were blank. These are configured profiles. Measured bitrate comes from the separately captured channel bitrate response.
+- **Log Information** offers System startup, System shutdown, System config change, Record, Alarm, Device warning, Exception log and All. An Alarm search for 21 November 2026 returned 54 entries. Its first page contained video-loss entries (`EVT_VLOSS_1` through `EVT_VLOSS_4`). Human detection entries were not established by this sample.
+
 ## Video data / recording playback
 
 **Verified proof of concept:** The original JavaScript receiver truncated large HEVC/H.265 keyframes by discarding continuation packets. The actual keyframe was **312,768 bytes**, but only **65,432 bytes** were initially delivered to the decoder (a buffer with 104 bytes reserved for a protocol header). By collecting **five** packets and reconstructing the whole frame, a short **nine-frame, ~0.87-second** H.265/MP4 sequence played without the green corruption caused by the missing frame data.
