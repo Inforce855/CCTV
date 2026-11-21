@@ -62,14 +62,16 @@ Sources for the additional verified HTTP reads are the archived 17–18 November
 
 ## Additional management API calls from the saved web interface
 
-Source: the NVR's saved web bundle (`build.js`), inspected on 21 November 2026. These call sites have been identified offline. Storage status was subsequently verified on the physical NVR. The other calls below still need live confirmation.
+Source: the NVR's saved web bundle (`build.js`), inspected on 21 November 2026. These call sites have been identified offline. Storage status was subsequently verified on the physical NVR. The table records which calls have live evidence.
 
 | Function | Request | Client evidence |
 | --- | --- | --- |
 | Storage status | `GET /netsdk/Stat` | **Verified on the physical NVR.** The HardDiskSetting component reads `HDDState.HDDInfo[]` and displays `ID`, `Model`, `Capacity`, `Used` and `Status`. A `harddisk` route exists in the bundle. Its visibility in the active menu is unverified. |
 | Camera connection status | `GET /netsdk/Stat/IPC` | The channel view polls this endpoint and copies the returned per-channel `Status` into the channel list. Response values and channel mapping still need hardware confirmation. |
 | Log history | `POST /netsdk/LogSearch`, `POST /netsdk/LogPageChange` | The Log Information view uses a LogSearch request envelope. Live event delivery remains unverified. |
-| Event configuration candidate | `GET /netsdk/Event` | A client read helper exists. The response and its use for Home Assistant still need checking. |
+| Detection and alarm configuration | `GET /netsdk/Event` | **Verified via Video Detection.** Returns eight entries each for `MotionDetection`, `VideoCover` and `VideoLoss`, plus six configured `Error` categories. Motion entries include schedules, region data, human detection options and alarm actions. Live event delivery remains unverified. |
+| Per-channel bitrate | `POST /netsdk/GetChannelDetail` | **Verified via captured response.** Returns `Item[]` with channel label, `Kb/s` and `MB/H`, and aggregate totals. |
+| NVR snapshots | `POST /NetworkSnap`, then `POST /netsdk/R.RmScreenShotFile` | The client requests a JPEG for region editing and cleans up the temporary file. The Video Detection capture included a JPEG data URL and a successful cleanup response. |
 
 The live `HDDState` response reported one drive (`Count: "1"`) and eight `HDDInfo` slots, seven with empty IDs. Capacity and percentage values are formatted strings. The populated slot reported `Status: "Formatted"`. This field does not establish SMART health or overwrite behaviour.
 
