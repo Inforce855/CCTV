@@ -12,9 +12,25 @@ Developing an **independent Linux CCTV server**, a **modern browser-based NVR ma
 - Hidden Telnet activation logic, the \`dbgmode\` command path, engineering interface and LUI command-dispatch architecture identified by **static analysis** (Mission 13). Physical 115200-baud UART and **interactive U-Boot access** were confirmed on 21 November 2026; an interactive Linux shell and runtime Telnet/SSH remain unverified.
 - Home Assistant Generic Camera snapshot access already works and must remain intact.
 
-## Next milestone
+## Run the read-only gateway
 
-Review the extracted Linux startup and console configuration offline, then compare existing tested protocols with the new browser and Home Assistant feature requirements. Build on proven local recording-search and HEVC recovery work; investigate Linux shell/temporary maintenance access only when necessary. Avoid boot-time maintenance services, unverified persistent markers, firmware flashing and unnecessary network changes.
+From the repository on a machine that can reach the NVR, run the following with Python 3.10 or later. Replace the example address with your NVR’s address.
+
+```sh
+python3 gateway.py http://192.168.1.100
+```
+
+Enter the NVR password when prompted. Use `--username` for an account other than `admin`, or `--port` to change the local port. The service listens on loopback and returns JSON.
+
+```sh
+curl -fsS http://127.0.0.1:8080/api/status
+curl -fsS 'http://127.0.0.1:8080/api/recordings?date=2026-11-21&channel=1&page=1'
+```
+
+- `/api/status` returns disk usage and populated drive slots, plus camera inventory and current connection/recording indicators. Channel IDs in this response are zero-based.
+- `/api/recordings` takes the NVR’s calendar date, a one-based channel and a one-based page. Channel and page default to 1. Returned recording metadata retains the original NVR timestamps and zero-based channel numbering.
+
+Both routes passed local HTTP integration checks against a mock NVR. The gateway itself still needs a smoke test from the NVR’s LAN. Continuous playback is the next development milestone after that check.
 
 The original firmware, evidence bundles, footage, private endpoint credentials and unsanitised capture logs are not included in this repository. Historical investigation details and outstanding uncertainties are recorded in [PROJECT_STATUS.md](PROJECT_STATUS.md).
 
