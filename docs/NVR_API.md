@@ -96,3 +96,28 @@ This is evidence that the NVR's local KP2P stream can carry decodable recording 
 2. Implement a reliable receive/reassembly path using the already captured WebSocket protocol evidence rather than repeatedly probing the NVR.
 3. Test continuous recording playback and metadata/time synchronisation before implementing download and Home Assistant playback.
 4. Do not expose NVR HTTP or WebSocket services to the public internet.
+
+
+## Settings inventory (21 November 2026)
+
+All 16 visible Settings pages and the separate Management page were opened on the physical NVR. No settings were submitted. Related API paths below come from the saved client. The browser walkthrough did not independently capture every request or test writes.
+
+| Page | Controls or information observed | Related API |
+| --- | --- | --- |
+| Device Information | Model, firmware, build time and identifiers | `GET /netsdk/Stat` |
+| Video Settings | Weekly per-channel timing, motion and alarm recording grid | `GET /netsdk/Record` |
+| Time Settings | Clock, time zone, date format, key buzzer, OSD transparency and VGA resolution | `GET /netsdk/General`, `GET /netsdk/Stat` |
+| Network Settings | DHCP, static addressing, web port, DDNS and PPPoE | `GET /netsdk/Network`, `GET /netsdk/Network/PPPoE` |
+| E-mail Settings | SMTP and encryption, sender/recipients, notification and health-mail intervals | `GET /netsdk/Network/SMTP` |
+| Wifi Settings | ESSID, wireless channel and region, link information | `GET /netsdk/Network/WIFI` |
+| Color Settings | Per-channel tone, contrast, brightness and saturation | `GET /netsdk/Stream/Color` |
+| Encoding Settings | Main/substream rate control, resolution, bitrate and frame rate, plus main-stream audio/video mode | `GET /netsdk/Stream/Encode` |
+| Stream Value | Per-channel throughput in Kb/s and MB/H | See captured bitrate response above |
+| Channel Detail | Configured main/substream profiles and software-version column | See browser observations above |
+| Channel OSD | Channel title setting | Channel configuration in saved client |
+| Video Detection | Motion sensitivity, region editor, arming schedule and notification options | `GET /netsdk/Event`, snapshot workflow above |
+| Change Password | Account password form | Form viewed only |
+| Log Information | Event filters, time range, retrieval and paging | `POST /netsdk/LogSearch`, `POST /netsdk/LogPageChange` |
+| Online Upgrade | Local ROM file selection | Upgrade screen viewed only |
+| Factory Settings | Simple restore (preserves channel/network configuration per UI) and full restore | Restore screen viewed only |
+| Management | Camera inventory, protocol and add/edit/remove controls | `GET /netsdk/Channel/IPCamInfo`, `GET /netsdk/Stat/IPC` |
