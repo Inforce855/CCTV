@@ -44,13 +44,21 @@ For machines where no administrator password is configured, the behaviour may di
 
 | Function | Path or transport | Evidence status |
 | --- | --- | --- |
+| Device information | `GET /netsdk/Stat/DeviceInfo` | **Verified with actual NVR**. Authenticated JSON includes firmware build time and maximum channel count. |
+| Camera/channel inventory | `GET /netsdk/Channel/IPCamInfo` | **Verified with actual NVR**. Returns channel IDs, enabled flags, model, protocol and advertised capabilities. |
 | Recording search | `POST /netsdk/R.SearchRecord` | **Verified with actual NVR** |
-| Recording configuration | `/netsdk/Record` | Found in client code; do not assume read/write operations are safe |
+| Recording schedules | `GET /netsdk/Record` | **Read verified with actual NVR**. Returns per-channel timer, motion and alarm schedules. Write behaviour remains unverified. |
 | PTZ | `POST /netsdk/Channel/PTZ` | Found in client code; end-to-end control not yet verified |
 | WebSocket KP2P | `ws://192.168.1.100:10000/` | **Local connection/login observed** |
 | NVR browser management | `http://192.168.1.100/` | Management UI works; old playback plugin is obsolete on Linux |
 
 The saved JavaScript uses `apip2p.connectbyip(conn, ip, "10000")`, `apip2p.replay_start()` and `apip2p.onrecvrecframe()`. A separate WebSocket login/handshake is required: a plain HTTP GET to port 10000 is **not** the correct protocol.
+
+## Further API coverage
+
+The saved local client calls KP2P `open_stream` and `close_stream` for live video and `ptz_ctrl` for camera movement. These call sites establish client support. End-to-end live video and PTZ still require verification for this project. The identified HTTP PTZ command is also unverified. Storage health/capacity, camera online state, a real-time event feed, settings writes and full clip export remain open. The camera inventory's enabled flag is a configuration field and does not establish online status. Recording search type filters do not establish a live event feed.
+
+Sources for the additional verified HTTP reads are the archived 17–18 November bench results, reviewed 21 November 2026. Camera snapshot support is documented separately in [CAMERA_HTTP_API.md](CAMERA_HTTP_API.md).
 
 ## Video data / recording playback
 
