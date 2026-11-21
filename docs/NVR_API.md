@@ -56,7 +56,7 @@ The saved JavaScript uses `apip2p.connectbyip(conn, ip, "10000")`, `apip2p.repla
 
 ## Further API coverage
 
-The saved local client calls KP2P `open_stream` and `close_stream` for live video and `ptz_ctrl` for camera movement. These call sites establish client support. End-to-end live video and PTZ still require verification for this project. The identified HTTP PTZ command is also unverified. Storage status is hardware-verified. Camera connection status still needs hardware confirmation. A real-time event feed, settings writes and full clip export remain open. The camera inventory's enabled flag is a configuration field and does not establish online status. Recording search type filters do not establish a live event feed.
+The saved local client calls KP2P `open_stream` and `close_stream` for live video and `ptz_ctrl` for camera movement. These call sites establish client support. End-to-end live video and PTZ still require verification for this project. The identified HTTP PTZ command is also unverified. Storage status is hardware-verified. Camera connection and recording indicators were observed in the same live response under `IPC[]`. A real-time event feed, settings writes and full clip export remain open. The camera inventory's enabled flag is a configuration field and does not establish online status. Recording search type filters do not establish a live event feed.
 
 Sources for the additional verified HTTP reads are the archived 17–18 November bench results, reviewed 21 November 2026. Camera snapshot support is documented separately in [CAMERA_HTTP_API.md](CAMERA_HTTP_API.md).
 
@@ -72,6 +72,8 @@ Source: the NVR's saved web bundle (`build.js`), inspected on 21 November 2026. 
 | Event configuration candidate | `GET /netsdk/Event` | A client read helper exists. The response and its use for Home Assistant still need checking. |
 
 The live `HDDState` response reported one drive (`Count: "1"`) and eight `HDDInfo` slots, seven with empty IDs. Capacity and percentage values are formatted strings. The populated slot reported `Status: "Formatted"`. This field does not establish SMART health or overwrite behaviour.
+
+The same live `GET /netsdk/Stat` response contained `IPC[]`. Zero-based IDs 0–3 (connected cameras) reported `Status: "Connect success"` and `RecordingState: "1"`. IDs 4–7 (unused slots on this unit) reported `Status: "Updating"` and `RecordingState: "0"`. One expanded camera entry also showed `BcamOnline: "True"`. Join by `IPC[].ID` with the configured inventory from `/netsdk/Channel/IPCamInfo` to distinguish unused slots. The response's `ChnInfo[]` status fields were empty. Motion-related fields were present, but transitions and real-time event delivery remain unverified. Treat the observed status strings as observations, not a complete enumeration.
 
 Use the GET method for the storage check. The separate POST to `/netsdk/Stat` is used by the disk-format workflow.
 
