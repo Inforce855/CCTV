@@ -1,14 +1,14 @@
 # Hiseeu CCTV — PROJECT_STATUS
 
-**Updated:** 18 November 2026  
+**Updated:** 21 November 2026  
 **Repository:** Inforce855/CCTV  
-**Status:** Offline firmware investigations and local NVR recording search are completed; reliable continuous playback and temporary serial/SSH access remain outstanding.
+**Status:** Offline firmware and local NVR recording investigations completed; physical UART and interactive U-Boot confirmed on 21 November. Linux shell/temporary SSH, continuous video playback, and browser/HA application remain outstanding.
 
 > **Privacy:** IP addresses below are illustrative, **not** the actual addresses of the investigated equipment. NVR: \`192.168.1.100\`; cameras: \`192.168.1.101\`–\`192.168.1.104\`. Never publish actual internal addresses, credentials, authenticated URLs, camera footage, or unsanitised captures.
 
 ## Objective
 
-Develop a Linux-native/browser-based and Home Assistant-compatible solution for Hiseeu D8208-5 NVR live camera viewing, PTZ, configuration and NVR recording search/playback/download, without relying on EseeCloud under Wine, obsolete Flash or Windows ActiveX. Preserve the working Home Assistant Generic Camera snapshot functionality and original NVR configuration.
+Develop an **independent Linux CCTV server** with a **modern browser-based full NVR management interface** and **Home Assistant integration**, avoiding EseeCloud under Wine and obsolete Flash/ActiveX. Target NVR feature parity (viewing, PTZ, settings, recordings, search, playback and export) subject to verification of protocol capabilities. The NVR retains all PoE camera connections, its 3 TB HDD, continuous recording and built-in 10-inch monitoring display. Home Assistant connects as a client for monitoring, playback access, events, alerts and automation; the core server and browser UI must work without HA. Preserve the working Home Assistant Generic Camera snapshot functionality and original NVR configuration.
 
 ## Equipment and environment
 
@@ -38,7 +38,7 @@ Develop a Linux-native/browser-based and Home Assistant-compatible solution for 
 ## Completed: Mission 12 — cloud, security and startup audit (static only)
 
 - Firmware contains code/strings for cloud P2P, push, diagnostics, vendor time/licence services and firmware updates. This is **code-capability evidence**, **not** proof that any particular endpoint was contacted by the running NVR. Outbound-traffic observation remains outstanding.
-- Init scripts, device-tree boot args and \`/etc/inittab\` indicate a possible **root shell via \`ttyS0\` at 115200 baud**, but physical header pinout/voltage and interactive access are **not yet tested**.
+- Init scripts, device-tree boot args and \`/etc/inittab\` indicate a possible **root shell via \`ttyS0\` at 115200 baud**. **Physical bidirectional UART and interactive U-Boot are now confirmed (21 November 2026); an interactive Linux shell is not yet confirmed.**
 - Telnet utilities \`telnet\` and \`telnetd\` were found in the extracted firmware; **live TCP port 23 was connection refused** in earlier tests. Telnet does **not** appear enabled under the observed normal configuration.
 - Startup mounts the application storage under \`/opt\`; extracted application startup scripts, config and maintenance flags warrant inspection on real hardware before assuming any writes survive a reboot.
 - The upgrade utility checks various identifiers/version/magic/CRC values. A matching model label **does not** demonstrate firmware compatibility.
@@ -69,13 +69,29 @@ Develop a Linux-native/browser-based and Home Assistant-compatible solution for 
 - Paths in the saved camera JavaScript include \`/cgi-bin/hi3510/ptzctrl.cgi\`, \`/cgi-bin/hi3510/preset.cgi\`, \`/netsdk/video/input/channel/1/privacyMasks\`, \`/netsdk/image\`, \`/netsdk/video/encode/channel/101\`, \`/NetSDK/Video/motionDetection/channel/1\`, \`/netsdk/system/deviceinfo\`, \`/netsdk/system/time/localTime\`, \`/netsdk/sdcard/media/search\`. Methods and limitations documented in [docs/CAMERA_HTTP_API.md](docs/CAMERA_HTTP_API.md).
 - Camera HTTP/SD endpoints must **not** be mistaken for the NVR's own \`R.SearchRecord\` API. Camera PTZ is not yet confirmed end to end.
 
+## Confirmed: physical UART and U-Boot access (21 November 2026)
+
+- **Hardware:** Installed four-pin header at NVR J18; silkscreen identifies GND, RXD, TXD, 3V3. Used a 3.3 V USB-to-UART adapter and a common ground; serial input/output was subsequently confirmed. Initial apparent lack of output came from mistakenly opening the CH341 at `/dev/ttyUSB0` rather than the connected CP2102 at `/dev/ttyUSB1`. Port numbers are not permanent identifiers.
+- **Boot log captured:** U-Boot **2017.09** (13 July 2021), Linux **4.9.138** (15 June 2022 build), ARMv7 dual-core FY10D/Molchip hardware, `console=ttyS0,115200`, SquashFS read-only root on `/dev/mtdblock3`, 16 MB SPI NOR with nine MTD partitions. NVR application `./app.out` started and identified firmware as **3.2.4.0F**, built 26 August 2023. U-Boot environment `bootargs` showed `mem=118M` whereas captured kernel command line showed `mem=128M`; discrepancy remains unexplained, not a confirmed defect.
+- **Interactive bootloader confirmed:** Pressing a key during startup produced `uboot#`; `?` listed commands and `printenv` returned the full environment without changes. The normal path is `sf probe`, kernel read from 0x70000, FDT read from 0x2f0000, then `bootz`. `bootdelay=0`; interruption was nevertheless achieved.
+- **Recovery-related evidence:** U-Boot environment also contains `usb start` and `fatload usb 0:1 0x41000000 help.rom` in later script variables. This does **not** establish a tested recovery procedure; no recovery image was loaded.
+- **Preservation:** No SPI writes, firmware flash, `saveenv`, configuration changes or permanent maintenance services performed. Header left fitted; serial adapter disconnected; enclosure reassembled and NVR returned to normal operation with cameras. Bootloader interaction does **not** yet establish interactive Linux/root access.
+- **Privacy:** Do not publish unredacted serial logs: they include actual equipment IDs, internal network addresses and configuration. Keep full raw capture privately; only publish sanitised excerpts.
+
+## Agreed application architecture (21 November 2026)
+
+- **Independent Linux-hosted CCTV service** (prefer ordinary service management, e.g. systemd), not dependent on Home Assistant for operation; similar deployment principle to the separately maintained Traccar server.
+- **One browser-based frontend** for Chrome and other modern desktop/mobile browsers: live multiview, individual camera/PTZ controls, recording search, timeline playback, exports, device and recording settings, storage/status and alerts, subject to verified NVR capabilities.
+- **Server API plus Home Assistant integration**: HA receives cameras/streams, snapshots, relevant status, events/alerts and playback links/actions; the direct web interface remains the full administrative experience. Do not duplicate the NVR's PoE switching, 3 TB local recording or ten-inch display.
+- **Implementation rule:** Review existing source and documented protocol tests before building. Preserve already working local HTTP/WebSocket recording search, HEVC keyframe reconstruction, and HA Generic Camera snapshots. Confirm each additional feature before claiming it implemented. Updates and changes belong in this repository, with dated status and README updates.
+
 ## COMPLETED — REMAINING — NEXT ACTION
 
-**COMPLETED:** Original discovery and HTTP snapshot path; local NVR HTTP/WebSocket/recording-search tests; playable HEVC sample reconstruction; firmware XOR decoding/extraction; static cloud, startup, hidden maintenance and LUI audits; public documentation and sample extractor.
+**COMPLETED:** Original discovery and HTTP snapshot path; local NVR HTTP/WebSocket/recording-search tests; playable HEVC sample reconstruction; firmware XOR decoding/extraction; static cloud, startup, hidden maintenance and LUI audits; **physical UART boot capture and interactive U-Boot access**; NVR restored to operation; independent-server/browser/HA project architecture agreed.
 
-**REMAINING:** Verify serial console and runtime mounts; establish on-demand SSH/Telnet without persistent changes; observe external cloud egress passively; develop continuous local stream receiver, full playback/download and Home Assistant/browser interface. Optional future task: identify feasible LUI/HDMI customisation.
+**REMAINING:** Verify **interactive Linux shell** and runtime mounts when hardware access is next needed; establish on-demand SSH/Telnet only if safe without persistent changes; observe external cloud egress passively; develop continuous local stream receiver, full playback/download, complete browser interface and HA integration. Optional future task: identify feasible LUI/HDMI customisation.
 
-**NEXT ACTION:** When physically at the NVR, identify the serial header and logic levels, connect **GND + receive-only** initially, capture \`ttyS0\` boot messages at **115200 baud**, and establish whether the indicated root console is usable. Then examine current mounts and run only reversible, deliberately started maintenance experiments. **No firmware flashing, no remote VPN/router changes, no automatic SSH/Telnet startup.**
+**NEXT ACTION:** With NVR back in service, review the already-extracted \`/linuxrc\`, \`/etc/inittab\` and startup scripts offline to determine how serial login is configured; then compare existing verified protocol functions with the agreed browser/HA requirements. Return to physical serial testing only when justified. **No firmware flashing, no remote VPN/router changes, no automatic SSH/Telnet startup.**
 
 ## Documentation and security rules
 
