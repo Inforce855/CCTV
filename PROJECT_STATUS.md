@@ -92,13 +92,19 @@ Develop an **independent Linux CCTV server** with a **modern browser-based full 
 - **Local API coverage:** Verified on hardware: local HTTP/WebSocket connection, `R.SearchRecord` metadata query, HEVC keyframe reconstruction and brief playable sample; existing HA snapshot works. Found in source but not end-to-end verified: NVR/camera PTZ, other configuration endpoints, continuous stream receiver, complete recording playback/download, events and HA integration. Avoid claiming parity or implementing a parallel recording system.
 - **Decision:** No reason to take the NVR off-line for serial tests now. Primary development blocker for full web playback is the unimplemented continuous KP2P receive/reassembly and time-synchronised playback, not lack of root/SSH access. Preserve the proven API work and obtain its original private implementation/capture evidence before modifying code.
 
+## Read-only gateway (21 November 2026)
+
+- Added [gateway.py](gateway.py) with loopback JSON endpoints for disk and camera status and paginated recording metadata. It uses the verified NVR calls documented in [NVR_API.md](docs/NVR_API.md).
+- Local HTTP integration checks passed against a mock NVR, covering authenticated requests, camera ID joins, empty drive slots, recording query validation and upstream failure. A live gateway run still requires a host on the NVR LAN.
+- The private Operation De-Hulk capture was recovered and reconstructed byte for byte against the known-good HEVC output. It is available as an offline regression fixture for the continuous receiver.
+
 ## COMPLETED — REMAINING — NEXT ACTION
 
 **COMPLETED:** Original discovery and HTTP snapshot path; local NVR HTTP/WebSocket/recording-search tests; playable HEVC sample reconstruction; firmware XOR decoding/extraction; static cloud, startup, hidden maintenance and LUI audits; **physical UART boot capture and interactive U-Boot access**; NVR restored to operation; independent-server/browser/HA project architecture agreed.
 
 **REMAINING:** Verify **interactive Linux shell** and runtime mounts when hardware access is next needed; establish on-demand SSH/Telnet only if safe without persistent changes; observe external cloud egress passively; develop continuous local stream receiver, full playback/download, complete browser interface and HA integration. Optional future task: identify feasible LUI/HDMI customisation.
 
-**NEXT ACTION:** Locate and inspect the **existing private KP2P/WebSocket receiver and HEVC keyframe-reassembly implementation/capture evidence** from the verified 17–18 November tests; determine the precise outstanding requirement for continuous recording playback. Implement and test that missing function in the existing project before building the broader browser and HA layers. Serial Linux-shell checks are optional and deferred unless needed. **No firmware flashing, no remote VPN/router changes, no automatic SSH/Telnet startup.**
+**NEXT ACTION:** Smoke-test the gateway endpoints from the NVR LAN, then build the continuous KP2P recording receiver using the private Operation De-Hulk fixture. Verify frame assembly and timestamp handling before integrating playback.
 
 ## Documentation and security rules
 
