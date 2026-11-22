@@ -2,12 +2,12 @@
 
 Developing an **independent Linux CCTV server**, a **modern browser-based NVR management interface**, and **Home Assistant integration** for the Hiseeu D8208-5 NVR and 5522-F-Q PoE PTZ cameras, without requiring EseeCloud under Wine or obsolete Flash/ActiveX controls. The existing NVR continues to provide PoE connectivity, 3 TB HDD recording and its integrated 10-inch display; the server provides remote access and management rather than replacing those functions.
 
-**Project status and dated technical findings:** [PROJECT_STATUS.md](PROJECT_STATUS.md) (updated 21 November 2026).
+**Project status and dated technical findings:** [PROJECT_STATUS.md](PROJECT_STATUS.md) (updated 22 November 2026).
 
 ## Current progress
 
 - Local NVR HTTP/WebSocket access and recording search demonstrated without manufacturer cloud dependence.
-- Complete H.265 keyframe reconstructed from five WebSocket packets; a short playable MP4 sample confirms the underlying video data is recoverable. Continuous playback/live streaming is not yet implemented.
+- Recorded HEVC video and G.711A audio are retrievable through the local KP2P protocol; progressive browser recording playback and replay caching were tested. A native Camera 1 SD live-preview implementation is committed but still awaits physical-device verification.
 - Original vendor firmware decoded and extracted **offline** (Mission 11); cloud/startup paths and potential serial maintenance access analysed (Mission 12).
 - Hidden Telnet activation logic, the \`dbgmode\` command path, engineering interface and LUI command-dispatch architecture identified by **static analysis** (Mission 13). Physical 115200-baud UART and **interactive U-Boot access** were confirmed on 21 November 2026; an interactive Linux shell and runtime Telnet/SSH remain unverified.
 - Home Assistant Generic Camera snapshot access already works and must remain intact.
