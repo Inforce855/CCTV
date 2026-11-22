@@ -18,7 +18,7 @@ from urllib.request import HTTPRedirectHandler, ProxyHandler, Request, build_ope
 
 
 MAX_CACHED_CLIPS = 4
-MAX_CACHED_CLIP_BYTES = 8 * 1024 * 1024
+MAX_CACHED_CLIP_BYTES = 32 * 1024 * 1024
 
 
 class NoRedirects(HTTPRedirectHandler):
@@ -160,6 +160,7 @@ def handler(nvr, port):
                 if key in nvr.replay_cache:
                     first, media = nvr.replay_cache[key]
                     nvr.replay_cache.move_to_end(key)
+                    self.log_message("Replay cache hit (%d bytes)", len(media))
                     self.send_response(200)
                     self.send_header("Content-Type", "video/mp4")
                     self.send_header("Content-Length", str(len(media)))
@@ -170,6 +171,7 @@ def handler(nvr, port):
                     sent = True
                     self.wfile.write(media)
                     return
+                self.log_message("Replay cache miss")
                 host = urlsplit(nvr.origin).hostname
                 if ":" in host:
                     host = f"[{host}]"
@@ -202,7 +204,14 @@ def handler(nvr, port):
                             nvr.replay_cache[key] = (first, cached)
                             if len(nvr.replay_cache) > MAX_CACHED_CLIPS:
                                 nvr.replay_cache.popitem(last=False)
+                            self.log_message("Replay cached (%d bytes)", len(cached))
+                        elif not complete.is_set():
+                            self.log_message("Replay not cached: recording ended before the requested boundary")
+                        elif cached is None:
+                            self.log_message("Replay not cached: exceeded %d bytes", MAX_CACHED_CLIP_BYTES)
                         self.wfile.write(b"0\r\n\r\n")
+                    else:
+                        self.log_message("Replay not cached: media stream failed")
             except (BrokenPipeError, ConnectionResetError):
                 pass
             except Exception:
