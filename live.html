@@ -28,6 +28,9 @@ button[aria-pressed=true]{background:#155877;border-color:#51cdfb}button:disable
 .placeholder{position:relative;max-width:40rem}.placeholder strong{display:block;font-size:1.05rem;margin-bottom:.45rem}
 .placeholder span{color:#99aec0;font-size:.87rem}.foot{display:flex;align-items:center;justify-content:space-between;gap:.5rem;padding:.3rem .65rem;flex-wrap:wrap}
 .foot button{padding:.35rem .65rem;font-size:.85rem}.stream{color:#aac2d2;font-size:.84rem}
+.fps-switch{display:inline-flex;gap:2px;align-items:center;white-space:nowrap}
+.fps-switch button{padding:.25rem .42rem;font-size:.78rem;border-radius:4px}
+.fps-switch button[aria-pressed="true"]{background:#155877;border-color:#51cdfb;color:#fff}
 .note{flex:none;margin-top:.55rem;padding:.45rem .8rem;border:1px solid #355065;border-radius:9px;background:#172634;color:#b6c9d8;font-size:.85rem}.note summary{cursor:pointer;color:#e8eff7;font-weight:600}.note[open]{max-height:32vh;overflow:auto}
 .note p{margin:.4rem 0}.note strong{color:#e8eff7}
 @media(max-width:790px){body{min-height:100dvh}main{min-height:600px}header{padding:.65rem}#connection{margin-left:0}.grid{grid-template-columns:1fr;grid-template-rows:repeat(4,minmax(160px,1fr))}.grid.single{grid-template-rows:minmax(360px,1fr)}main{padding:.5rem}.tile-head{padding:.35rem .6rem}}@media(max-height:600px) and (min-width:791px){header{padding:.45rem 1rem}header p{display:none}.toolbar{margin-bottom:.3rem}.tile-head{padding:.18rem .5rem}.foot{padding:.15rem .5rem}.note{margin-top:.3rem}}
@@ -51,9 +54,9 @@ button[aria-pressed=true]{background:#155877;border-color:#51cdfb}button:disable
 </div>
 <section id="cameras" class="grid" aria-label="CCTV cameras"></section>
 <details class="note">
-<summary>Four-camera SD preview — details</summary>
-<p>Camera 1 SD has been confirmed working with moving footage. The same native KP2P receiver now supports on-demand SD previews for Cameras 2–4; simultaneous operation awaits confirmation on the NVR. Each preview currently outputs 5 fps via FFmpeg/MJPEG.</p>
-<p>Start cameras individually or use Start all SD. Each camera has its own Stop live control. HD switching and audio remain pending. The viewer does not change NVR recording settings, use PTZ or modify the working recording playback.</p>
+<summary>Four-camera SD preview — frame-rate testing</summary>
+<p>All four SD pictures were confirmed working together in Chrome. Each tile has its own 5 / 10 / 15 fps preview setting (initially 5 fps). A rate change while playing automatically restarts only that camera's preview; allow a moment for the previous stream to close. Other cameras remain on their selected rates.</p>
+<p>These settings control only the browser's FFmpeg/MJPEG output, not the NVR's 15 fps SD encoder, exposure, recording or motion detection. HD and audio remain pending; recording playback is unchanged.</p>
 </details>
 </main>
 <script>
@@ -81,7 +84,7 @@ for(let n=1;n<=4;n++){
     '</h2><span class="pill" data-role="status">Checking…</span></div>'+
     '<div class="screen"><div class="placeholder"><strong>Live feed stopped</strong>'+
     '<span>Click Start SD live to connect</span></div></div>'+
-    '<div class="foot"><span class="stream">SD · 800 × 448 · 5 fps preview</span>'+
+    '<div class="foot"><span class="stream">SD · 800 × 448</span>'+
     '<button class="select-camera" type="button">Select camera '+n+'</button></div>';
   const selectButton=tile.querySelector('.select-camera');
   selectButton.addEventListener('click',()=>{
@@ -99,10 +102,45 @@ for(let n=1;n<=4;n++){
   button.type='button';
   button.textContent='Start SD live';
   tile.querySelector('.foot').append(button);
-  const state={active:false,image,button,placeholder};
+  const state={
+    active:false, image, button, placeholder, fps:5,
+    retrying:false, retries:0, timer:null, fpsButtons:[]
+  };
+  const fpsSwitch=document.createElement('div');
+  fpsSwitch.className='fps-switch';
+  fpsSwitch.setAttribute('role','group');
+  fpsSwitch.setAttribute('aria-label','Camera '+n+' preview frame rate');
+  for(const fps of [5,10,15]){
+    const rateButton=document.createElement('button');
+    rateButton.type='button';
+    rateButton.textContent=fps+' fps';
+    rateButton.title='Camera '+n+' preview at '+fps+' fps';
+    rateButton.setAttribute('aria-pressed',String(fps===state.fps));
+    rateButton.addEventListener('click',()=>changeFps(n,fps));
+    fpsSwitch.append(rateButton);
+    state.fpsButtons.push({fps,button:rateButton});
+  }
+  tile.querySelector('.foot').insertBefore(fpsSwitch,selectButton);
   button.addEventListener('click',()=>state.active?stopLive(n):startLive(n));
+  image.addEventListener('load',()=>{
+    state.retrying=false;
+    state.retries=0;
+  });
   image.addEventListener('error',()=>{
-    if(state.active)stopLive(n,true);
+    if(!state.active)return;
+    if(state.retrying&&state.retries<4){
+      state.retries++;
+      state.image.removeAttribute('src');
+      state.image.hidden=true;
+      state.placeholder.querySelector('strong').textContent=
+        'Reconnecting Camera '+n+' at '+state.fps+' fps…';
+      clearTimeout(state.timer);
+      state.timer=setTimeout(()=>{
+        if(state.active)openLiveImage(n);
+      },1000+state.retries*750);
+    }else{
+      stopLive(n,true);
+    }
   });
   channels.set(n,tile);
   previews.set(n,state);
@@ -113,21 +151,35 @@ function updateLiveButtons(){
   startAllButton.disabled=active===4;
   stopAllButton.disabled=active===0;
 }
+function openLiveImage(n){
+  const state=previews.get(n);
+  if(!state||!state.active)return;
+  state.image.hidden=false;
+  state.image.src='/api/live?channel='+n+'&stream=1&fps='+state.fps;
+}
 function startLive(n){
   const state=previews.get(n);
   if(!state||state.active)return;
+  clearTimeout(state.timer);
   state.active=true;
+  state.retrying=false;
+  state.retries=0;
   state.button.textContent='Stop live';
-  state.placeholder.querySelector('strong').textContent='Connecting to Camera '+n+' SD…';
-  state.placeholder.querySelector('span').textContent='Native KP2P live-stream preview';
-  state.image.hidden=false;
-  state.image.src='/api/live?channel='+n+'&stream=1';
+  state.placeholder.querySelector('strong').textContent=
+    'Connecting to Camera '+n+' at '+state.fps+' fps…';
+  state.placeholder.querySelector('span').textContent='Native KP2P SD preview';
+  openLiveImage(n);
   updateLiveButtons();
 }
 function stopLive(n,failed=false){
   const state=previews.get(n);
-  if(!state||!state.active)return;
+  if(!state)return;
+  clearTimeout(state.timer);
+  state.timer=null;
+  if(!state.active)return;
   state.active=false;
+  state.retrying=false;
+  state.retries=0;
   state.image.removeAttribute('src');
   state.image.hidden=true;
   state.button.textContent='Start SD live';
@@ -136,6 +188,30 @@ function stopLive(n,failed=false){
   state.placeholder.querySelector('span').textContent=
     failed?'Check gateway output, then retry':'Click Start SD live to reconnect';
   updateLiveButtons();
+}
+function changeFps(n,fps){
+  const state=previews.get(n);
+  if(!state||![5,10,15].includes(fps)||state.fps===fps)return;
+  state.fps=fps;
+  for(const entry of state.fpsButtons){
+    entry.button.setAttribute('aria-pressed',String(entry.fps===fps));
+  }
+  if(!state.active)return; // The next manual Start uses the selected fps.
+  // Only this camera is restarted; others retain their live connections.
+  clearTimeout(state.timer);
+  state.retrying=true;
+  state.retries=0;
+  state.image.removeAttribute('src');
+  state.image.hidden=true;
+  state.placeholder.querySelector('strong').textContent=
+    'Switching Camera '+n+' to '+fps+' fps…';
+  state.placeholder.querySelector('span').textContent=
+    'Reconnecting only this camera';
+  // Allow the old MJPEG HTTP session and per-camera lock to close.
+  // A bounded retry handles slow FFmpeg/KP2P teardown.
+  state.timer=setTimeout(()=>{
+    if(state.active)openLiveImage(n);
+  },1800);
 }
 function stopAll(){
   for(let n=1;n<=4;n++)stopLive(n);
