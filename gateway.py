@@ -106,6 +106,20 @@ def fields(value, *keys):
     return {key: value[key] for key in keys if key in value}
 
 
+def live_preview_query(query):
+    """Validate the on-demand SD preview query without changing NVR settings."""
+    values = parse_qs(query, max_num_fields=3, keep_blank_values=True)
+    if (set(values) not in ({"channel", "stream"}, {"channel", "stream", "fps"})
+            or any(len(items) != 1 for items in values.values())
+            or values["stream"] != ["1"]):
+        raise ValueError("Invalid live preview query")
+    channel = int(values["channel"][0])
+    fps = int(values.get("fps", ["5"])[0])
+    if not 1 <= channel <= 4 or fps not in (5, 10, 15):
+        raise ValueError("Invalid live preview channel or frame rate")
+    return channel, fps
+
+
 def recording_query(query):
     values = parse_qs(query, keep_blank_values=True, max_num_fields=3)
     if set(values) - {"date", "channel", "page"} or any(len(v) != 1 for v in values.values()):
@@ -137,16 +151,9 @@ def handler(nvr, port):
         def live(self, query):
             """Read-only, on-demand SD MJPEG preview for cameras 1–4."""
             try:
-                values = parse_qs(query, max_num_fields=2, keep_blank_values=True)
-                if (set(values) != {"channel", "stream"} or
-                        any(len(items) != 1 for items in values.values()) or
-                        values["stream"] != ["1"]):
-                    raise ValueError
-                channel = int(values["channel"][0])
-                if not 1 <= channel <= 4:
-                    raise ValueError
+                channel, fps = live_preview_query(query)
             except (ValueError, KeyError):
-                self.reply(400, {"error": "Use channel=1–4 and stream=1 (SD)"})
+                self.reply(400, {"error": "Use channel=1–4, stream=1 (SD), fps=5/10/15"})
                 return
             live_lock = nvr.live_locks[channel - 1]
             if not live_lock.acquire(blocking=False):
@@ -158,9 +165,9 @@ def handler(nvr, port):
                 host = urlsplit(nvr.origin).hostname
                 if ":" in host:
                     host = f"[{host}]"
-                self.log_message("Starting Camera %d SD live preview", channel)
+                self.log_message("Starting Camera %d SD live preview at %d fps", channel, fps)
                 with mjpeg_preview(f"ws://{host}:10000/", nvr.username, nvr.password,
-                                   channel - 1, 1) as (images, errors):
+                                   channel - 1, 1, fps=fps) as (images, errors):
                     first = next(images, None)
                     if first is None:
                         raise ValueError("No JPEG received from live video")
