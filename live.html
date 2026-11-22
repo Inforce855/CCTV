@@ -20,7 +20,7 @@ button[aria-pressed=true]{background:#155877;border-color:#51cdfb}button:disable
 .tile{min-width:0;min-height:0;display:grid;grid-template-rows:auto minmax(0,1fr) auto;border:2px solid #344b5c;border-radius:12px;overflow:hidden;background:#15212d}
 .tile.chosen{border-color:#55d2fe}.tile[hidden]{display:none!important}
 .tile-head{display:flex;align-items:center;justify-content:space-between;gap:.5rem;padding:.35rem .7rem}
-.tile-head h2{font-size:1rem;margin:0}.pill{display:inline-block;font-size:.75rem;color:#c7d5e3;padding:.25rem .6rem;border:1px solid #506477;border-radius:999px}
+.tile-head h2{font-size:1rem;margin:0}.fps-meter{font-size:.78rem;color:#b4d9ed;white-space:nowrap;font-variant-numeric:tabular-nums;margin-left:auto}.pill{display:inline-block;font-size:.75rem;color:#c7d5e3;padding:.25rem .6rem;border:1px solid #506477;border-radius:999px}
 .pill.online{color:#a4f5c2;border-color:#348960}.pill.offline{color:#f4b0ac;border-color:#a05154}
 .screen{position:relative;min-width:0;min-height:0;overflow:hidden;display:grid;place-items:center;text-align:center;background:linear-gradient(130deg,#111923,#172b3b);padding:.5rem}
 .screen img.live-video{position:absolute;inset:0;width:100%;height:100%;object-fit:contain;background:#000;z-index:1}.screen img.live-video[hidden]{display:none}
@@ -56,7 +56,8 @@ button[aria-pressed=true]{background:#155877;border-color:#51cdfb}button:disable
 <details class="note">
 <summary>Four-camera SD preview — frame-rate testing</summary>
 <p>All four SD pictures were confirmed working together in Chrome. Each tile has its own 5 / 10 / 15 fps preview setting (initially 5 fps). A rate change while playing automatically restarts only that camera's preview; allow a moment for the previous stream to close. Other cameras remain on their selected rates.</p>
-<p>These settings control only the browser's FFmpeg/MJPEG output, not the NVR's 15 fps SD encoder, exposure, recording or motion detection. HD and audio remain pending; recording playback is unchanged.</p>
+<p>Each camera heading now shows <strong>In</strong> (encoded NVR video frames per second fed to FFmpeg) and <strong>Out</strong> (JPEG images per second sent by the gateway). Values are measured over a rolling five-second interval and refresh every two seconds. These counters do not guarantee visually distinct pictures, actual browser rendering rate or end-to-end latency.</p>
+<p>The 5/10/15 switches control only browser preview conversion, not the NVR's SD encoder, exposure, recording or motion detection. HD and audio remain pending; recording playback is unchanged.</p>
 </details>
 </main>
 <script>
@@ -81,7 +82,9 @@ for(let n=1;n<=4;n++){
   tile.className='tile';
   tile.dataset.channel=String(n);
   tile.innerHTML='<div class="tile-head"><h2>Camera '+n+
-    '</h2><span class="pill" data-role="status">Checking…</span></div>'+
+    '</h2><span class="fps-meter" data-role="fps-meter" '+
+    'title="NVR frames handed to FFmpeg / JPEG images sent by the gateway">FPS —</span>'+
+    '<span class="pill" data-role="status">Checking…</span></div>'+
     '<div class="screen"><div class="placeholder"><strong>Live feed stopped</strong>'+
     '<span>Click Start SD live to connect</span></div></div>'+
     '<div class="foot"><span class="stream">SD · 800 × 448</span>'+
@@ -162,6 +165,7 @@ function startLive(n){
   if(!state||state.active)return;
   clearTimeout(state.timer);
   state.active=true;
+  channels.get(n).querySelector('[data-role="fps-meter"]').textContent='Measuring…';
   state.retrying=false;
   state.retries=0;
   state.button.textContent='Stop live';
@@ -178,6 +182,7 @@ function stopLive(n,failed=false){
   state.timer=null;
   if(!state.active)return;
   state.active=false;
+  channels.get(n).querySelector('[data-role="fps-meter"]').textContent='FPS —';
   state.retrying=false;
   state.retries=0;
   state.image.removeAttribute('src');
@@ -267,12 +272,49 @@ async function loadStatus(){
     }
   }
 }
+async function loadLiveMetrics(){
+  if(document.hidden)return;
+  try{
+    const response=await fetch('/api/live/metrics',{cache:'no-store'});
+    if(!response.ok)throw Error('FPS metrics unavailable');
+    const result=await response.json();
+    if(!Array.isArray(result.cameras))throw Error('Invalid FPS metrics');
+    for(let n=1;n<=4;n++){
+      const state=previews.get(n);
+      const label=channels.get(n).querySelector('[data-role="fps-meter"]');
+      if(!state.active){
+        label.textContent='FPS —';
+        continue;
+      }
+      const data=result.cameras.find(item=>item.channel===n);
+      if(!data||!data.active){
+        label.textContent='Connecting…';
+        continue;
+      }
+      const inFps=typeof data.source_fps==='number'?data.source_fps.toFixed(1):'—';
+      const outFps=typeof data.jpeg_fps==='number'?data.jpeg_fps.toFixed(1):'—';
+      label.textContent='In '+inFps+' · Out '+outFps+' fps';
+      label.title='Measured NVR encoded video input: '+inFps+
+        ' fps. Gateway JPEG images sent: '+outFps+
+        ' fps. Five-second rolling window. These are not browser rendering measurements.';
+    }
+  }catch(error){
+    for(let n=1;n<=4;n++){
+      if(previews.get(n).active){
+        channels.get(n).querySelector('[data-role="fps-meter"]').textContent=
+          'FPS unavailable';
+      }
+    }
+  }
+}
 document.getElementById('refresh').addEventListener('click',loadStatus);
 window.addEventListener('pagehide',stopAll);
 render();
 updateLiveButtons();
 loadStatus();
+loadLiveMetrics();
 setInterval(()=>{if(!document.hidden)loadStatus()},15000);
+setInterval(loadLiveMetrics,2000);
 </script>
 </body>
 </html>
