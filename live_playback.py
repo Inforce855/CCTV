@@ -74,13 +74,17 @@ def recording_frames(socket, session, deadline):
         yield packet
 
 
-def expect_reply(socket, session, transport_command, app_command=None):
+def expect_reply(socket, session, stage, transport_commands, app_command=None):
     deadline = time.monotonic() + 8
+    seen = set()
     for packet in recording_frames(socket, session, deadline):
         if len(packet) < 32:
             continue
         magic, command, _, _, _, _, result, _ = struct.unpack_from("<6IiI", packet)
-        if magic != IOT_MAGIC or command != transport_command:
+        if magic != IOT_MAGIC:
+            continue
+        seen.add(str(command))
+        if command not in transport_commands:
             continue
         if result:
             raise ValueError(f"NVR rejected transport request ({result})")
@@ -88,12 +92,14 @@ def expect_reply(socket, session, transport_command, app_command=None):
             if len(packet) < 56:
                 continue
             magic, _, _, command, result, _ = struct.unpack_from("<4IiI", packet, 32)
+            if magic == APP_MAGIC:
+                seen.add(f"app:{command}")
             if magic != APP_MAGIC or command != app_command:
                 continue
             if result:
                 raise ValueError(f"NVR rejected authentication ({result})")
         return
-    raise TimeoutError("No expected reply from the NVR")
+    raise TimeoutError(f"{stage}: no expected reply (received {', '.join(sorted(seen)) or 'no protocol commands'})")
 
 
 def receive_clip(url, username, password, channel, start, end, kinds, output):
@@ -104,9 +110,9 @@ def receive_clip(url, username, password, channel, start, end, kinds, output):
         if socket.recv(timeout=8) != ARQ_ACCEPT:
             raise ValueError("Unexpected NVR handshake reply")
         send(socket, transport(20, session, struct.pack("<II", session, 0)))
-        expect_reply(socket, session, 21)
+        expect_reply(socket, session, "LAN session open", (21,))
         send(socket, transport(19, session, application(10, 1, auth_payload(username, password))))
-        expect_reply(socket, session, 19, 11)
+        expect_reply(socket, session, "NVR login", (19, 43), 11)
         replay = application(40, 2, replay_payload(3, channel, start, end, kinds))
         send(socket, transport(19, session, replay))
         count = 0
