@@ -308,13 +308,19 @@ Develop an **independent Linux CCTV server** with a **modern browser-based full 
 - **Next read-only step:** Send an unauthenticated `OPTIONS rtsp://<camera>:554/ RTSP/1.0` request via a local TCP socket. A returned RTSP status line (including `401 Unauthorized`) would show an RTSP-speaking listener; `200` may advertise supported methods in the `Public:` header. Record only non-sensitive response headers. This does not yet establish an actual stream path or access rights.
 - **Preserve:** Proven NVR KP2P four-camera live viewer, existing HA direct snapshots, NVR recording playback/cache. Direct-camera live video remains untested; no application code or camera/NVR configuration changes made.
 
+## Camera 1 confirms functional RTSP service (22 November 2026)
+
+- **Direct hardware RTSP protocol check passed:** Camera 1 at its internal IP returned `RTSP/1.0 200 OK` to an unauthenticated `OPTIONS` request on TCP/554. Server header: **`happytime rtsp server 2.2`**; advertised methods: **DESCRIBE, SETUP, PLAY, OPTIONS, TEARDOWN, GET_PARAMETER, SET_PARAMETER**. This conclusively establishes an RTSP-speaking server, beyond the earlier open-port test; **no media path, codec, authentication requirement or frame rate is yet proven**.
+- **Next focused probe:** Send a read-only unauthenticated `DESCRIBE` to the camera RTSP root `/` with `Accept: application/sdp`; examine status and SDP. A 404 would mean only that root is not a valid media path, not that RTSP video is unavailable. Do not copy auth tokens into source, expose device URLs externally or enable RTMP.
+- **State:** Four-camera NVR KP2P SD live and NVR recorded playback remain verified and unchanged; direct-camera live route still pending path discovery and test.
+
 ## COMPLETED — REMAINING — NEXT ACTION
 
 **COMPLETED:** Original discovery and HTTP snapshot path; local NVR HTTP/WebSocket/recording-search tests; playable HEVC sample reconstruction; firmware XOR decoding/extraction; static cloud, startup, hidden maintenance and LUI audits; **physical UART boot capture and interactive U-Boot access**; NVR restored to operation; independent-server/browser/HA project architecture agreed.
 
 **REMAINING:** Verify **interactive Linux shell** and runtime mounts when hardware access is next needed; establish on-demand SSH/Telnet only if safe without persistent changes; observe external cloud egress passively; develop continuous local stream receiver, full playback/download, complete browser interface and HA integration. Optional future task: identify feasible LUI/HDMI customisation.
 
-**NEXT ACTION:** Port 554 is open on the 5522-F-Q camera. Confirm that it speaks RTSP with an unauthenticated read-only OPTIONS request, then identify a real stream URL and compare direct-camera fps/latency against NVR KP2P SD. Leave RTMP disabled and preserve the existing live viewer, HA snapshot integration and NVR playback/cache.
+**NEXT ACTION:** Camera 1 has positively responded to RTSP OPTIONS (200 OK; happytime rtsp server 2.2). Send read-only RTSP DESCRIBE to check whether root '/' supplies SDP or returns an actionable authentication/path status. Then establish a verified direct live URL and measure fps/latency before making any viewer changes. Preserve NVR live and playback.
 
 ## Documentation and security rules
 
