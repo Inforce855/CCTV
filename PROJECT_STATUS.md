@@ -326,13 +326,20 @@ Develop an **independent Linux CCTV server** with a **modern browser-based full 
 - **Reason established from curl project's own discussion:** curl's command-line `--request` option has been documented as **not controlling the RTSP request type**; curl can send OPTIONS regardless of `--request DESCRIBE`. Daniel Stenberg confirmed this limitation: https://curl.se/mail/archive-2021-02/0026.html. This earlier suggested command was unsuitable; do not repeat it or claim that RTSP DESCRIBE succeeded. Libcurl has an API-level RTSP request selector, but the installed CLI's behaviour has not been separately traced here.
 - **Next action:** Send an actual `DESCRIBE` with Python's existing socket library; when the camera returns its confirmed `401 Digest` challenge, compute the standard Digest authorization using a password read interactively, and retry. Print only response status, type and non-sensitive SDP track information; avoid displaying credentials, Authorization values or nonces. A final 200+SDP confirms the root media resource, while 404 after valid authentication implies the path differs. Preserve all working systems.
 
+## Direct camera RTSP authenticated DESCRIBE returns valid SDP (22 November 2026)
+
+- **User-verified actual RTSP request:** The corrected Python socket-based `DESCRIBE` with RFC Digest authentication returned **`RTSP/1.0 200 OK`**, **`Content-Type: application/sdp`** on the **root media path `/`**. This supersedes the misleading curl CLI OPTIONS result. Credentials were provided interactively and are not recorded in the repository.
+- **Reported SDP:** `a=control:*`; audio `m=audio 0 RTP/AVP 8`, `a=rtpmap:8 PCMA/8000/1`, `a=control:realaudio`; video `m=video 0 RTP/AVP 96`, `a=rtpmap:96 H265/90000`, `a=control:realvideo`. Thus the camera advertises **HEVC video and G.711 A-law audio over RTSP**, independent of browser Flash or the NVR KP2P live feed.
+- **Remaining:** The SDP alone does not prove that `SETUP`/`PLAY` succeeds, nor the video resolution, actual frame cadence, stability or latency. The known user-entered camera password may or may not be blank; do not presume this or publish a populated RTSP URL.
+- **Next targeted check:** If the camera password is blank, use workstation FFprobe's TCP transport to inspect `rtsp://admin:@<camera>:554/` read-only. If not blank, first choose a private credential-handling method that avoids embedding the secret in shell history/process arguments. Record detected codec/resolution and actual source cadence separately. Keep original NVR live and replay implementations, and RTMP switch, unchanged.
+
 ## COMPLETED — REMAINING — NEXT ACTION
 
 **COMPLETED:** Original discovery and HTTP snapshot path; local NVR HTTP/WebSocket/recording-search tests; playable HEVC sample reconstruction; firmware XOR decoding/extraction; static cloud, startup, hidden maintenance and LUI audits; **physical UART boot capture and interactive U-Boot access**; NVR restored to operation; independent-server/browser/HA project architecture agreed.
 
 **REMAINING:** Verify **interactive Linux shell** and runtime mounts when hardware access is next needed; establish on-demand SSH/Telnet only if safe without persistent changes; observe external cloud egress passively; develop continuous local stream receiver, full playback/download, complete browser interface and HA integration. Optional future task: identify feasible LUI/HDMI customisation.
 
-**NEXT ACTION:** The latest curl CLI `--request DESCRIBE` test inadvertently returned RTSP OPTIONS; it did not authenticate DESCRIBE. Send a real socket-level DESCRIBE, respond to the documented RTSP Digest challenge using interactively entered credentials, and read its status/SDP. Then confirm direct video timing without changing the working NVR gateway and playback.
+**NEXT ACTION:** Native authenticated RTSP DESCRIBE on Camera 1 succeeded with root-path SDP advertising H.265 video and PCMA audio. Verify actual SETUP/PLAY and report codec/resolution using a read-only FFprobe test with credentials handled privately. Then measure actual direct frame cadence and latency against NVR KP2P SD, preserving four-camera viewing, NVR playback/cache and HA snapshots.
 
 ## Documentation and security rules
 
