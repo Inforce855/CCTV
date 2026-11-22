@@ -3,11 +3,14 @@ import argparse
 import base64
 from datetime import date
 import getpass
+from itertools import chain
 from http.client import HTTPException
-from http.server import BaseHTTPRequestHandler, HTTPServer
+from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 import json
 import os
+from pathlib import Path
 import re
+from threading import Lock
 from urllib.error import URLError
 from urllib.parse import parse_qs, urlsplit
 from urllib.request import HTTPRedirectHandler, ProxyHandler, Request, build_opener
@@ -21,6 +24,9 @@ class NoRedirects(HTTPRedirectHandler):
 class Nvr:
     def __init__(self, origin, username, password):
         self.origin = origin
+        self.username = username
+        self.password = password
+        self.replay_lock = Lock()
         token = base64.b64encode(f"{username}:{password}".encode()).decode()
         self.authorization = f"Basic {token}"
         self.opener = build_opener(ProxyHandler({}), NoRedirects())
@@ -109,6 +115,8 @@ def recording_query(query):
 
 def handler(nvr, port):
     class GatewayHandler(BaseHTTPRequestHandler):
+        protocol_version = "HTTP/1.1"
+
         def reply(self, status, body):
             data = json.dumps(body).encode()
             self.send_response(status)
@@ -118,11 +126,84 @@ def handler(nvr, port):
             self.end_headers()
             self.wfile.write(data)
 
+        def playback(self, query):
+            try:
+                values = parse_qs(query, max_num_fields=4, keep_blank_values=True)
+                if set(values) != {"start", "channel", "seconds", "type"} or any(len(v) != 1 for v in values.values()):
+                    raise ValueError
+                start, channel, seconds, kinds = (
+                    int(values[key][0]) for key in ("start", "channel", "seconds", "type")
+                )
+                if not (1 <= channel <= 8 and 1 <= seconds <= 30 and
+                        0 <= start <= 0xFFFFFFFF - seconds and kinds in (1, 2, 4, 8)):
+                    raise ValueError
+            except ValueError:
+                self.reply(400, {"error": "Invalid recording time, camera, duration or type"})
+                return
+            try:
+                from browser_playback import browser_stream, mp4_boxes
+            except ImportError:
+                self.reply(503, {"error": "Install the playback dependencies listed in the README"})
+                return
+            if not nvr.replay_lock.acquire(blocking=False):
+                self.reply(409, {"error": "Another recording is still loading. Try again shortly."})
+                return
+            sent = False
+            try:
+                host = urlsplit(nvr.origin).hostname
+                if ":" in host:
+                    host = f"[{host}]"
+                with browser_stream(f"ws://{host}:10000/", nvr.username, nvr.password,
+                                    channel - 1, start, start + seconds, kinds) as (first, output, process, errors):
+                    boxes = mp4_boxes(output)
+                    initial = next(boxes, None)
+                    if initial is None:
+                        raise ValueError("No browser video returned")
+                    self.send_response(200)
+                    self.send_header("Content-Type", "video/mp4")
+                    self.send_header("Transfer-Encoding", "chunked")
+                    self.send_header("Connection", "close")
+                    self.close_connection = True
+                    self.send_header("X-First-Frame-MS", str(first))
+                    self.send_header("Cache-Control", "no-store")
+                    self.end_headers()
+                    sent = True
+                    for box in chain((initial,), boxes):
+                        self.wfile.write(f"{len(box):X}\r\n".encode() + box + b"\r\n")
+                    if process.wait() == 0 and not errors:
+                        self.wfile.write(b"0\r\n\r\n")
+            except (BrokenPipeError, ConnectionResetError):
+                pass
+            except Exception:
+                if not sent:
+                    self.reply(502, {"error": "Could not start recording playback"})
+            finally:
+                nvr.replay_lock.release()
+
         def do_GET(self):
             if self.headers.get("Host") not in {f"127.0.0.1:{port}", f"localhost:{port}"}:
                 self.reply(400, {"error": "Use the local gateway address"})
                 return
             target = urlsplit(self.path)
+            if target.path == "/playback":
+                try:
+                    data = Path(__file__).with_name("playback.html").read_bytes()
+                except OSError:
+                    self.reply(503, {"error": "The browser playback page is missing"})
+                    return
+                self.send_response(200)
+                self.send_header("Content-Type", "text/html; charset=utf-8")
+                self.send_header("Content-Length", str(len(data)))
+                self.send_header("Cache-Control", "no-store")
+                self.end_headers()
+                self.wfile.write(data)
+                return
+            if target.path == "/api/playback":
+                if self.headers.get("Sec-Fetch-Site") != "same-origin":
+                    self.reply(403, {"error": "Open the gateway playback page to start a recording"})
+                    return
+                self.playback(target.query)
+                return
             if target.path == "/api/recordings":
                 try:
                     parameters = recording_query(target.query)
@@ -160,7 +241,7 @@ def main():
     if password is None:
         password = getpass.getpass("NVR password: ")
     nvr = Nvr(args.origin.rstrip("/"), args.username, password)
-    with HTTPServer(("127.0.0.1", args.port), handler(nvr, args.port)) as server:
+    with ThreadingHTTPServer(("127.0.0.1", args.port), handler(nvr, args.port)) as server:
         print(f"CCTV gateway listening at http://127.0.0.1:{args.port}", flush=True)
         try:
             server.serve_forever()
