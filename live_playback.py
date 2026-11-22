@@ -116,13 +116,17 @@ def receive_clip(url, username, password, channel, start, end, kinds, output):
         replay = application(40, 2, replay_payload(3, channel, start, end, kinds))
         send(socket, transport(19, session, replay))
         count = 0
-        first = last = None
+        first = last = first_in_range = None
+        before_start = in_range = keyframes = 0
+        stop_reason = "deadline"
+        capture_started = time.monotonic()
         try:
-            deadline = time.monotonic() + (end - start) + 10
+            deadline = capture_started + (end - start) + 45
             for frame in frames(recording_frames(socket, session, deadline), allow_incomplete_tail=True):
                 if frame.channel != channel or frame.codec != "H265":
                     continue
-                if frame.timestamp_ms >= end * 1000 and count:
+                if frame.timestamp_ms >= end * 1000:
+                    stop_reason = "end_timestamp"
                     break
                 if not count and frame.frame_type != 1:
                     continue
@@ -132,6 +136,13 @@ def receive_clip(url, username, password, channel, start, end, kinds, output):
                 last = frame.timestamp_ms
                 output.write(frame.data)
                 count += 1
+                keyframes += frame.frame_type == 1
+                if frame.timestamp_ms < start * 1000:
+                    before_start += 1
+                else:
+                    if first_in_range is None:
+                        first_in_range = frame.timestamp_ms
+                    in_range += 1
         finally:
             try:
                 send(socket, transport(19, session, application(40, 3, replay_payload(2))))
@@ -139,7 +150,12 @@ def receive_clip(url, username, password, channel, start, end, kinds, output):
                 pass
     if count < 2:
         raise ValueError("The NVR did not return a playable HEVC sequence for that window")
-    return {"frames": count, "first_timestamp_ms": first, "last_timestamp_ms": last}
+    return {
+        "frames": count, "keyframes": keyframes,
+        "first_timestamp_ms": first, "last_timestamp_ms": last,
+        "frames_before_start": before_start, "frames_in_range": in_range,
+        "first_in_range_ms": first_in_range, "stop_reason": stop_reason,
+    }
 
 
 def parse_time(value):
