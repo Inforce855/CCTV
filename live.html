@@ -44,108 +44,126 @@ button[aria-pressed=true]{background:#155877;border-color:#51cdfb}button:disable
 <button type="button" id="single" aria-pressed="false">▣ Selected camera</button>
 <button type="button" id="sd" aria-pressed="true">SD</button>
 <button type="button" id="hd" aria-pressed="false">HD</button>
+<button type="button" id="start-all">Start all SD</button>
+<button type="button" id="stop-all" disabled>Stop all</button>
 <button type="button" id="refresh">Refresh status</button>
 <span id="connection" role="status" aria-live="polite">Checking NVR…</span>
 </div>
 <section id="cameras" class="grid" aria-label="CCTV cameras"></section>
 <details class="note">
-<summary>Camera 1 SD live-video experiment — details</summary>
-<p>Camera 1 SD can now be started manually using the native KP2P live-stream receiver and a 5 fps browser MJPEG preview. The command and frame structures come from the saved vendor client. Actual live reception has not yet been tested on this NVR; other cameras, HD and audio remain pending.</p>
-<p>This read-only viewer does not alter NVR recording settings, use PTZ or send camera-control commands. The working recording playback page is unchanged.</p>
+<summary>Four-camera SD preview — details</summary>
+<p>Camera 1 SD has been confirmed working with moving footage. The same native KP2P receiver now supports on-demand SD previews for Cameras 2–4; simultaneous operation awaits confirmation on the NVR. Each preview currently outputs 5 fps via FFmpeg/MJPEG.</p>
+<p>Start cameras individually or use Start all SD. Each camera has its own Stop live control. HD switching and audio remain pending. The viewer does not change NVR recording settings, use PTZ or modify the working recording playback.</p>
 </details>
 </main>
 <script>
 'use strict';
 const container=document.getElementById('cameras');
 const connection=document.getElementById('connection');
-const modeButtons={grid:document.getElementById('grid'),single:document.getElementById('single'),sd:document.getElementById('sd'),hd:document.getElementById('hd')};
+const startAllButton=document.getElementById('start-all');
+const stopAllButton=document.getElementById('stop-all');
+const modeButtons={
+  grid:document.getElementById('grid'),
+  single:document.getElementById('single'),
+  sd:document.getElementById('sd'),
+  hd:document.getElementById('hd')
+};
 let selection=1;
 let layout='grid';
-let requestedProfile='sd';
-let liveActive=false;
-let liveImage=null;
-let liveButton=null;
-let livePlaceholder=null;
 const channels=new Map();
+const previews=new Map();
+
 for(let n=1;n<=4;n++){
   const tile=document.createElement('article');
   tile.className='tile';
   tile.dataset.channel=String(n);
-  tile.innerHTML=`<div class="tile-head"><h2>Camera ${n}</h2><span class="pill" data-role="status">Checking…</span></div>
-    <div class="screen"><div class="placeholder"><strong>Live feed pending</strong><span>Waiting for a verified KP2P live-stream receiver</span></div></div>
-    <div class="foot"><span class="stream" data-role="profile">SD · 800 × 448 planned</span><button type="button">Select camera ${n}</button></div>`;
-  const button=tile.querySelector('button');
-  button.addEventListener('click',()=>{
+  tile.innerHTML='<div class="tile-head"><h2>Camera '+n+
+    '</h2><span class="pill" data-role="status">Checking…</span></div>'+
+    '<div class="screen"><div class="placeholder"><strong>Live feed stopped</strong>'+
+    '<span>Click Start SD live to connect</span></div></div>'+
+    '<div class="foot"><span class="stream">SD · 800 × 448 · 5 fps preview</span>'+
+    '<button class="select-camera" type="button">Select camera '+n+'</button></div>';
+  const selectButton=tile.querySelector('.select-camera');
+  selectButton.addEventListener('click',()=>{
     selection=n;
-    if(layout==='single'&&n!==1)stopLive();
     render();
   });
-  if(n===1){
-    const screen=tile.querySelector('.screen');
-    livePlaceholder=screen.querySelector('.placeholder');
-    livePlaceholder.querySelector('span').textContent='Click Start SD live to connect';
-    liveImage=document.createElement('img');
-    liveImage.className='live-video';
-    liveImage.alt='Camera 1 live SD video';
-    liveImage.hidden=true;
-    liveImage.addEventListener('error',()=>{
-      if(liveActive){
-        stopLive();
-        livePlaceholder.querySelector('strong').textContent='Unable to display live stream';
-        livePlaceholder.querySelector('span').textContent='Check gateway output and retry';
-      }
-    });
-    screen.append(liveImage);
-    liveButton=document.createElement('button');
-    liveButton.type='button';
-    liveButton.textContent='Start SD live';
-    liveButton.addEventListener('click',()=>liveActive?stopLive():startLive());
-    tile.querySelector('.foot').append(liveButton);
-  }
-  container.append(tile);
+  const screen=tile.querySelector('.screen');
+  const placeholder=screen.querySelector('.placeholder');
+  const image=document.createElement('img');
+  image.className='live-video';
+  image.alt='Camera '+n+' live SD video';
+  image.hidden=true;
+  screen.append(image);
+  const button=document.createElement('button');
+  button.type='button';
+  button.textContent='Start SD live';
+  tile.querySelector('.foot').append(button);
+  const state={active:false,image,button,placeholder};
+  button.addEventListener('click',()=>state.active?stopLive(n):startLive(n));
+  image.addEventListener('error',()=>{
+    if(state.active)stopLive(n,true);
+  });
   channels.set(n,tile);
+  previews.set(n,state);
+  container.append(tile);
 }
-function startLive(){
-  if(liveActive)return;
-  liveActive=true;
-  liveButton.textContent='Stop live';
-  livePlaceholder.querySelector('strong').textContent='Connecting to Camera 1 SD…';
-  livePlaceholder.querySelector('span').textContent='Native KP2P live-stream preview';
-  liveImage.hidden=false;
-  liveImage.src='/api/live?channel=1&stream=1';
+function updateLiveButtons(){
+  const active=[...previews.values()].filter(state=>state.active).length;
+  startAllButton.disabled=active===4;
+  stopAllButton.disabled=active===0;
 }
-function stopLive(){
-  if(!liveActive)return;
-  liveActive=false;
-  liveImage.removeAttribute('src');
-  liveImage.hidden=true;
-  liveButton.textContent='Start SD live';
-  livePlaceholder.querySelector('strong').textContent='Live feed stopped';
-  livePlaceholder.querySelector('span').textContent='Click Start SD live to reconnect';
+function startLive(n){
+  const state=previews.get(n);
+  if(!state||state.active)return;
+  state.active=true;
+  state.button.textContent='Stop live';
+  state.placeholder.querySelector('strong').textContent='Connecting to Camera '+n+' SD…';
+  state.placeholder.querySelector('span').textContent='Native KP2P live-stream preview';
+  state.image.hidden=false;
+  state.image.src='/api/live?channel='+n+'&stream=1';
+  updateLiveButtons();
+}
+function stopLive(n,failed=false){
+  const state=previews.get(n);
+  if(!state||!state.active)return;
+  state.active=false;
+  state.image.removeAttribute('src');
+  state.image.hidden=true;
+  state.button.textContent='Start SD live';
+  state.placeholder.querySelector('strong').textContent=
+    failed?'Live preview unavailable':'Live feed stopped';
+  state.placeholder.querySelector('span').textContent=
+    failed?'Check gateway output, then retry':'Click Start SD live to reconnect';
+  updateLiveButtons();
+}
+function stopAll(){
+  for(let n=1;n<=4;n++)stopLive(n);
 }
 function render(){
   container.classList.toggle('single',layout==='single');
   for(const [n,tile] of channels){
     tile.hidden=layout==='single'&&n!==selection;
     tile.classList.toggle('chosen',selection===n);
-    const effective=layout==='grid'?'sd':requestedProfile;
-    tile.querySelector('[data-role="profile"]').textContent=effective==='hd'
-      ?'HD · 1920 × 1080 planned':'SD · 800 × 448 planned';
-    tile.querySelector('button').textContent=selection===n?'Selected camera':'Select camera '+n;
-    tile.querySelector('button').setAttribute('aria-pressed',String(selection===n));
+    const button=tile.querySelector('.select-camera');
+    button.textContent=selection===n?'Selected camera':'Select camera '+n;
+    button.setAttribute('aria-pressed',String(selection===n));
   }
   modeButtons.grid.setAttribute('aria-pressed',String(layout==='grid'));
   modeButtons.single.setAttribute('aria-pressed',String(layout==='single'));
-  modeButtons.sd.setAttribute('aria-pressed',String(requestedProfile==='sd'));
-  modeButtons.hd.setAttribute('aria-pressed',String(requestedProfile==='hd'));
-  modeButtons.sd.disabled=layout==='grid';
-  // Only Camera 1 SD is implemented during the first live transport test.
+  modeButtons.sd.setAttribute('aria-pressed','true');
+  modeButtons.hd.setAttribute('aria-pressed','false');
+  // This experimental four-camera version supports SD only.
+  modeButtons.sd.disabled=true;
   modeButtons.hd.disabled=true;
 }
 modeButtons.grid.addEventListener('click',()=>{layout='grid';render()});
 modeButtons.single.addEventListener('click',()=>{layout='single';render()});
-modeButtons.sd.addEventListener('click',()=>{requestedProfile='sd';render()});
-modeButtons.hd.addEventListener('click',()=>{requestedProfile='hd';render()});
+startAllButton.addEventListener('click',()=>{
+  for(let n=1;n<=4;n++)startLive(n);
+});
+stopAllButton.addEventListener('click',stopAll);
+
 async function loadStatus(){
   connection.textContent='Checking NVR…';
   try{
@@ -156,23 +174,27 @@ async function loadStatus(){
     for(const [n,tile] of channels){
       const row=payload.channels.find(c=>Number(c.ID)===n-1);
       const pill=tile.querySelector('[data-role="status"]');
-      const online=Boolean(row&&row.Status==='Connect success'&&String(row.Enable).toLowerCase()!=='false');
+      const online=Boolean(row&&row.Status==='Connect success'&&
+                           String(row.Enable).toLowerCase()!=='false');
       pill.className='pill '+(online?'online':'offline');
       pill.textContent=online?'NVR connected':row?'Not connected':'No status';
       pill.title=row&&typeof row.Status==='string'?row.Status:'No channel data';
     }
-    connection.textContent='NVR status updated · '+new Date().toLocaleTimeString('en-GB',{hour12:false});
+    connection.textContent='NVR status updated · '+
+      new Date().toLocaleTimeString('en-GB',{hour12:false});
   }catch(err){
     connection.textContent='Status unavailable: '+err.message;
     for(const tile of channels.values()){
       const pill=tile.querySelector('[data-role="status"]');
-      pill.className='pill';pill.textContent='Unknown';
+      pill.className='pill';
+      pill.textContent='Unknown';
     }
   }
 }
 document.getElementById('refresh').addEventListener('click',loadStatus);
-window.addEventListener('pagehide',stopLive);
+window.addEventListener('pagehide',stopAll);
 render();
+updateLiveButtons();
 loadStatus();
 setInterval(()=>{if(!document.hidden)loadStatus()},15000);
 </script>
