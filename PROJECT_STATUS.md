@@ -104,13 +104,17 @@ Develop an **independent Linux CCTV server** with a **modern browser-based full 
 - The HEVC output matched the nine-frame De-Hulk reference byte for byte and decoded without errors in FFmpeg. The parser also identified 22 G.711A audio frames and passed repeated-keyframe and truncation checks. The raw HEVC preview is video only.
 - Next verify the same receiver with a longer, authenticated single-camera playback session over the LAN. Measure delivery cadence and seek alignment before browser integration. Browser targets include typed time selection, exact forward/back frame stepping, short jumps, and synchronised multi-camera review.
 
+## LAN playback client (22 November 2026)
+
+- Added [live_playback.py](live_playback.py) for bounded, authenticated single-camera replay on the NVR LAN. A mock WebSocket handshake and replay using the private capture returned all nine reference frames exactly and verified that the client sent replay STOP. Real-device connection, footage delivery and timing remain unverified.
+
 ## COMPLETED — REMAINING — NEXT ACTION
 
 **COMPLETED:** Original discovery and HTTP snapshot path; local NVR HTTP/WebSocket/recording-search tests; playable HEVC sample reconstruction; firmware XOR decoding/extraction; static cloud, startup, hidden maintenance and LUI audits; **physical UART boot capture and interactive U-Boot access**; NVR restored to operation; independent-server/browser/HA project architecture agreed.
 
 **REMAINING:** Verify **interactive Linux shell** and runtime mounts when hardware access is next needed; establish on-demand SSH/Telnet only if safe without persistent changes; observe external cloud egress passively; develop continuous local stream receiver, full playback/download, complete browser interface and HA integration. Optional future task: identify feasible LUI/HDMI customisation.
 
-**NEXT ACTION:** Connect the offline-verified frame assembler to a live KP2P playback session and verify a longer single-camera time range on the NVR LAN.
+**NEXT ACTION:** Run the bounded LAN playback client against the physical NVR and verify a single-camera recording across multiple keyframes.
 
 ## Documentation and security rules
 
