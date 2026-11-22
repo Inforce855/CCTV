@@ -84,6 +84,18 @@ Use the GET method for the storage check. The separate POST to `/netsdk/Stat` is
 - **Channel Detail** displayed configured main streams of 2880 × 1620 at 15 fps (3 or 5 Mbps by channel) and substreams of 800 × 448 at 15 fps (512 kbps) on all four connected cameras. Unused slots were blank. These are configured profiles. Measured bitrate comes from the separately captured channel bitrate response.
 - **Log Information** offers System startup, System shutdown, System config change, Record, Alarm, Device warning, Exception log and All. An Alarm search for 21 November 2026 returned 54 entries. Its first page contained video-loss entries (`EVT_VLOSS_1` through `EVT_VLOSS_4`). Human detection entries were not established by this sample.
 
+## Native live-stream wire format (vendor source, 22 November 2026)
+
+The original saved `Netword video client_files/import.js` was re-examined, rather than inferring wire commands from API names. It explicitly constructs:
+
+- `open_stream(conn, channel, stream)`: `APP_PROTO_CMD_LIVE_REQ = 30` with a 12-byte little-endian body `(channel, streamid, live_cmd=2)`.
+- `close_stream(conn, channel, stream)`: the same command with `live_cmd=1`.
+- Acknowledgement: `APP_PROTO_CMD_LIVE_RSP = 31`, whose body returns channel, stream ID and live command.
+- Stream selection: `0` main (HD), `1` substream (SD). Camera/channel indices start at zero.
+- Video reception: `FRAM`/optional `FRAN` prefix, a 24-byte common frame header with type `0` for live, an 8-byte live head, a 24-byte codec/video-parameter header and eight additional bytes before raw video data. The video callback exposes codec, frames per second, width, height, channel and I/P-frame type. Multi-packet frame reassembly must be maintained.
+
+The new `live_stream.py` requests this exact live command through the already tested login transport. The new on-demand `/api/live?channel=1&stream=1` route feeds a 5 fps MJPEG preview via FFmpeg to Camera 1 in the existing `/live` page. **Only the original vendor JavaScript command layout and offline synthetic packet tests are confirmed at this point; a live-camera hardware test remains outstanding.** No PTZ or NVR configuration writes are sent.
+
 ## Video data / recording playback
 
 **Verified proof of concept:** The original JavaScript receiver truncated large HEVC/H.265 keyframes by discarding continuation packets. The actual keyframe was **312,768 bytes**, but only **65,432 bytes** were initially delivered to the decoder (a buffer with 104 bytes reserved for a protocol header). By collecting **five** packets and reconstructing the whole frame, a short **nine-frame, ~0.87-second** H.265/MP4 sequence played without the green corruption caused by the missing frame data.
