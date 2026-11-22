@@ -1,7 +1,7 @@
 """Read-only HTTP gateway for the Hiseeu D8208-5."""
 import argparse
 import base64
-from collections import OrderedDict
+from collections import OrderedDict, deque
 from datetime import date
 import getpass
 from itertools import chain
@@ -12,6 +12,7 @@ import os
 from pathlib import Path
 import re
 from threading import Lock
+import time
 from urllib.error import URLError
 from urllib.parse import parse_qs, urlsplit
 from urllib.request import HTTPRedirectHandler, ProxyHandler, Request, build_opener
@@ -26,6 +27,91 @@ class NoRedirects(HTTPRedirectHandler):
         return None
 
 
+class LiveFpsMeter:
+    """Five-second rolling KP2P input and HTTP JPEG delivery frame rates.
+
+    Source counts encoded video frames handed to FFmpeg, not unique pixels.
+    JPEG counts complete multipart images written to the local HTTP client,
+    not browser-rendered frames. Neither metric alone establishes latency.
+    """
+
+    WINDOW_SECONDS = 5.0
+
+    def __init__(self):
+        self.lock = Lock()
+        self.started = None
+        self.requested_fps = None
+        self.source_times = deque()
+        self.jpeg_times = deque()
+        self.source_count = 0
+        self.jpeg_count = 0
+        self.last_source_timestamp = None
+        self.repeat_timestamp_count = 0
+
+    def begin(self, requested_fps):
+        with self.lock:
+            self.started = time.monotonic()
+            self.requested_fps = requested_fps
+            self.source_times.clear()
+            self.jpeg_times.clear()
+            self.source_count = 0
+            self.jpeg_count = 0
+            self.last_source_timestamp = None
+            self.repeat_timestamp_count = 0
+
+    def source_frame(self, timestamp_ms):
+        with self.lock:
+            if self.started is None:
+                return
+            self.source_times.append(time.monotonic())
+            self.source_count += 1
+            if self.last_source_timestamp == timestamp_ms:
+                self.repeat_timestamp_count += 1
+            self.last_source_timestamp = timestamp_ms
+
+    def jpeg_frame(self):
+        with self.lock:
+            if self.started is None:
+                return
+            self.jpeg_times.append(time.monotonic())
+            self.jpeg_count += 1
+
+    def finish(self):
+        with self.lock:
+            self.started = None
+            self.requested_fps = None
+            self.source_times.clear()
+            self.jpeg_times.clear()
+
+    def snapshot(self):
+        with self.lock:
+            if self.started is None:
+                return {
+                    "active": False, "target_fps": None,
+                    "source_fps": None, "jpeg_fps": None,
+                    "source_frames": 0, "jpeg_frames": 0,
+                    "repeated_source_timestamps": 0,
+                }
+            now = time.monotonic()
+            threshold = now - self.WINDOW_SECONDS
+            for events in (self.source_times, self.jpeg_times):
+                while events and events[0] < threshold:
+                    events.popleft()
+            elapsed = min(now - self.started, self.WINDOW_SECONDS)
+
+            def rate(events):
+                return round(len(events) / elapsed, 1) if elapsed >= 1 else None
+
+            return {
+                "active": True, "target_fps": self.requested_fps,
+                "source_fps": rate(self.source_times),
+                "jpeg_fps": rate(self.jpeg_times),
+                "source_frames": self.source_count,
+                "jpeg_frames": self.jpeg_count,
+                "repeated_source_timestamps": self.repeat_timestamp_count,
+            }
+
+
 class Nvr:
     def __init__(self, origin, username, password):
         self.origin = origin
@@ -34,6 +120,7 @@ class Nvr:
         self.replay_lock = Lock()
         # One active MJPEG viewer per camera; four independent KP2P sessions.
         self.live_locks = tuple(Lock() for _ in range(4))
+        self.live_fps_meters = tuple(LiveFpsMeter() for _ in range(4))
         self.replay_cache = OrderedDict()
         token = base64.b64encode(f"{username}:{password}".encode()).decode()
         self.authorization = f"Basic {token}"
@@ -159,6 +246,8 @@ def handler(nvr, port):
             if not live_lock.acquire(blocking=False):
                 self.reply(409, {"error": f"Camera {channel} SD preview is already running"})
                 return
+            meter = nvr.live_fps_meters[channel - 1]
+            meter.begin(fps)
             started = False
             try:
                 from live_preview import mjpeg_preview
@@ -167,7 +256,8 @@ def handler(nvr, port):
                     host = f"[{host}]"
                 self.log_message("Starting Camera %d SD live preview at %d fps", channel, fps)
                 with mjpeg_preview(f"ws://{host}:10000/", nvr.username, nvr.password,
-                                   channel - 1, 1, fps=fps) as (images, errors):
+                                   channel - 1, 1, fps=fps,
+                                   on_source_frame=meter.source_frame) as (images, errors):
                     first = next(images, None)
                     if first is None:
                         raise ValueError("No JPEG received from live video")
@@ -183,6 +273,7 @@ def handler(nvr, port):
                             b"--frame\r\nContent-Type: image/jpeg\r\nContent-Length: " +
                             str(len(frame)).encode() + b"\r\n\r\n" + frame + b"\r\n"
                         )
+                        meter.jpeg_frame()
                     if errors:
                         self.log_message("Live preview source error: %s", errors[0])
             except (BrokenPipeError, ConnectionResetError):
@@ -192,6 +283,7 @@ def handler(nvr, port):
                 if not started:
                     self.reply(502, {"error": f"Could not start Camera {channel} SD live preview"})
             finally:
+                meter.finish()
                 live_lock.release()
                 self.log_message("Stopped Camera %d SD live preview", channel)
 
@@ -313,6 +405,18 @@ def handler(nvr, port):
                 self.send_header("Cache-Control", "no-store")
                 self.end_headers()
                 self.wfile.write(data)
+                return
+            if target.path == "/api/live/metrics":
+                if self.headers.get("Sec-Fetch-Site") != "same-origin":
+                    self.reply(403, {"error": "Open the local live page to read FPS metrics"})
+                    return
+                self.reply(200, {
+                    "window_seconds": LiveFpsMeter.WINDOW_SECONDS,
+                    "cameras": [
+                        {"channel": channel, **meter.snapshot()}
+                        for channel, meter in enumerate(nvr.live_fps_meters, 1)
+                    ],
+                })
                 return
             if target.path == "/api/live":
                 if self.headers.get("Sec-Fetch-Site") != "same-origin":
