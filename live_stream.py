@@ -134,9 +134,25 @@ def receive_live(url, username, password, channel=0, stream=1):
         expect_reply(socket, session, "Live stream open", (19, 43), LIVE_RESPONSE)
         try:
             # Bounded to an hour; browsers can open a new session after expiry.
-            packets = recording_frames(socket, session, time.monotonic() + 3600)
-            yield (frame for frame in live_frames_from_packets(packets)
-                   if frame.channel == channel)
+            deadline = time.monotonic() + 3600
+            startup_deadline = time.monotonic() + 16
+            got_video = False
+
+            def checked_packets():
+                nonlocal got_video
+                for packet in recording_frames(socket, session, deadline):
+                    if not got_video and time.monotonic() > startup_deadline:
+                        raise TimeoutError("No live video frames within 16 seconds")
+                    yield packet
+
+            def checked_frames():
+                nonlocal got_video
+                for frame in live_frames_from_packets(checked_packets()):
+                    if frame.channel == channel:
+                        got_video = True
+                        yield frame
+
+            yield checked_frames()
         finally:
             try:
                 send(socket, transport(19, session, stop))
