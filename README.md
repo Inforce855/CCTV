@@ -62,7 +62,7 @@ The test prompts for the NVR password and reports frame count and first/last ori
 
 Start the gateway with the playback virtual environment described above and open `http://127.0.0.1:8080/playback`. Enter the camera, recording type and local start time. The gateway streams 720p H.264 fragments progressively, using FFmpeg with libx264. Chrome retains the current clip's buffered video for short backwards and forwards jumps. Playback starts at the first available frame and displays the duration of any lead-in before the requested start.
 
-The first preview is single-camera and video-only, with a nominal 15 fps preview timeline. The separate MP4 exporter still supports original timestamped HEVC and audio. Progressive delivery passed an HTTP fixture test. Live Chrome on Nobara displayed the recording and supported buffered jumps and timeline seeking after the capture completed. Time to first picture and seeking during capture still need measurement.
+The preview is single-camera with H.264 video and AAC audio, and uses a nominal 15 fps timeline. Repeat the same camera, start, duration and recording type to reuse a complete clip from the gateway’s in-memory replay cache. The cache holds four clips up to 8 MiB each and clears on restart. The separate MP4 exporter still supports original timestamped HEVC and audio. Progressive delivery passed an HTTP fixture test. Live Chrome on Nobara displayed the recording and supported buffered jumps and timeline seeking after the capture completed. Time to first picture and seeking during capture still need measurement.
 
 ## Target application
 
