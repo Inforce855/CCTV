@@ -138,13 +138,22 @@ Develop an **independent Linux CCTV server** with a **modern browser-based full 
 
 - The Chrome player has Previous frame and Next frame controls for buffered, paused playback. They use the last presented frame timestamp and the current preview’s 15 fps frame grid. A JavaScript test verified the requested targets round-trip three frames forward and three back and that the controls respect playback state and the buffered range. Tim confirmed both paused frame controls work in live Chrome after the clip has loaded. Tim also confirmed visually that stepping back and then forward by the same number of frames returned to the starting point. His 15-step check agreed with the 15 fps preview cadence. This was a visual check, with no pixel comparison.
 
+## Live viewer dashboard groundwork (22 November 2026)
+
+- **Implemented (code committed, not yet visually tested in Chrome):** `/live` serves `live.html` from the existing loopback `gateway.py`; four-camera grid and single-camera selection, planned SD/HD view indicators, read-only camera connection labels sourced from `/api/status`, and 15-second status refresh while the page is visible.
+- **Preserved:** The proven replay transport, `/playback`, short-jump/frame-step controls, and in-memory cache are unchanged. No camera/NVR configuration writes, audio/lighting/PTZ commands or new transport commands are made.
+- **Not implemented:** Video frames are not delivered to `/live`; the page visibly says 'Live feed pending'. SD/HD controls currently select only a planned view profile, not NVR streams.
+- **Deployment:** Preferred eventual host is Debian **Debdock** (i5-6500T, 8 GB RAM, Intel iHD H.264 encode/HEVC Main decode); A8 (Ryzen 7 8745HS, Radeon 780M) is fallback for heavier transcoding. Strix Halo is the development workstation, **not** the production host.
+- **Verified recent replay:** A Camera 1 ten-second HD replay within the current hour succeeded with 150 in-range frames, G.711A audio and original HEVC remuxed to seekable MP4; therefore waiting for an NVR one-hour block to close is not required for that tested window. Planned rolling two-day local archive is not yet implemented.
+- **Next action:** Visually verify `/live` and the status/channel mapping, then implement/test the genuine live KP2P stream-open protocol starting with Camera 1 SD. Do not misrepresent replay as real-time video.
+
 ## COMPLETED — REMAINING — NEXT ACTION
 
 **COMPLETED:** Original discovery and HTTP snapshot path; local NVR HTTP/WebSocket/recording-search tests; playable HEVC sample reconstruction; firmware XOR decoding/extraction; static cloud, startup, hidden maintenance and LUI audits; **physical UART boot capture and interactive U-Boot access**; NVR restored to operation; independent-server/browser/HA project architecture agreed.
 
 **REMAINING:** Verify **interactive Linux shell** and runtime mounts when hardware access is next needed; establish on-demand SSH/Telnet only if safe without persistent changes; observe external cloud egress passively; develop continuous local stream receiver, full playback/download, complete browser interface and HA integration. Optional future task: identify feasible LUI/HDMI customisation.
 
-**NEXT ACTION:** Implement synchronised two-camera playback.
+**NEXT ACTION:** Verify the new `/live` dashboard in Chrome, then implement and test the native KP2P live receiver for Camera 1 SD. Two-camera synchronised playback remains a separate later task.
 
 ## Documentation and security rules
 
