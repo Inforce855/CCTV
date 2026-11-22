@@ -52,11 +52,11 @@ From the repository on the NVR LAN, use a Python virtual environment for the tes
 ```sh
 python3 -m venv ~/.venvs/cctv-playback
 ~/.venvs/cctv-playback/bin/python -m pip install 'websockets>=16,<17' cryptography
-~/.venvs/cctv-playback/bin/python live_playback.py 192.168.1.100 2026-11-22T08:05:00+00:00 clip.h265 --channel 2 --seconds 10
-ffplay -f hevc clip.h265
+~/.venvs/cctv-playback/bin/python live_playback.py 192.168.1.100 2026-11-22T08:05:00+00:00 clip.mp4 --channel 2 --seconds 10
+ffplay clip.mp4
 ```
 
-The test prompts for the NVR password and reports frame count and first/last original timestamps. The raw video preview uses the player's timing. The client sends a playback stop request at the end and closes the WebSocket. The mock WebSocket test passed. Live retrieval was verified on the physical NVR. The captured clip played cleanly in FFplay at 15 fps on Nobara. Exact seek alignment remains open.
+The test prompts for the NVR password and reports frame count and first/last original timestamps. An MP4 output requires FFmpeg and preserves relative NVR frame timing without re-encoding. It retains the decode lead-in and contains video only. Use a .h265 output for the previous raw mode. The summary reports the wait from the start of the replay request to the first frame in range. The client sends a playback stop request at the end and closes the WebSocket. The mock WebSocket test passed. Live retrieval was verified on the physical NVR. The captured clip played cleanly in FFplay at 15 fps on Nobara. Exact seek alignment remains open.
 
 ## Target application
 
