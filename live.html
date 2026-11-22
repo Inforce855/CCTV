@@ -1,0 +1,129 @@
+<!doctype html>
+<html lang="en-GB">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<meta name="color-scheme" content="dark">
+<title>CCTV | Live cameras</title>
+<style>
+:root{font:15px system-ui,-apple-system,Segoe UI,sans-serif;color:#e8eff7;background:#101821}
+*{box-sizing:border-box}body{margin:0;min-height:100vh}button,a{font:inherit}
+header{display:flex;align-items:center;justify-content:space-between;gap:1rem;padding:1rem 1.5rem;background:#162331;border-bottom:1px solid #2b4154;flex-wrap:wrap}
+h1{font-size:1.3rem;margin:0}header p{margin:.25rem 0 0;color:#a3b7c9;font-size:.88rem}
+nav{display:flex;gap:.75rem;align-items:center}a{color:#85d5ff}main{max-width:1600px;margin:auto;padding:1.3rem}
+.toolbar{display:flex;flex-wrap:wrap;align-items:center;gap:.7rem;margin-bottom:1rem}
+button{background:#253b50;border:1px solid #3c5c74;color:#e8eff7;border-radius:.5rem;padding:.55rem .85rem;cursor:pointer}
+button:hover:not(:disabled){background:#33536e}button:focus-visible,a:focus-visible{outline:3px solid #63cfff;outline-offset:2px}
+button[aria-pressed=true]{background:#155877;border-color:#51cdfb}button:disabled{opacity:.55;cursor:not-allowed}
+#connection{margin-left:auto;color:#9eafbd;font-size:.87rem}.grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:1rem}
+.grid.single{grid-template-columns:minmax(0,1fr);max-width:1100px;margin:auto}
+.tile{min-width:0;border:2px solid #344b5c;border-radius:12px;overflow:hidden;background:#15212d}
+.tile.chosen{border-color:#55d2fe}.tile[hidden]{display:none!important}
+.tile-head{display:flex;align-items:center;justify-content:space-between;gap:.5rem;padding:.65rem .9rem}
+.tile-head h2{font-size:1rem;margin:0}.pill{display:inline-block;font-size:.75rem;color:#c7d5e3;padding:.25rem .6rem;border:1px solid #506477;border-radius:999px}
+.pill.online{color:#a4f5c2;border-color:#348960}.pill.offline{color:#f4b0ac;border-color:#a05154}
+.screen{position:relative;aspect-ratio:16/9;display:grid;place-items:center;text-align:center;background:linear-gradient(130deg,#111923,#172b3b);padding:1rem}
+.screen::before{content:"";position:absolute;inset:0;opacity:.15;pointer-events:none;background-image:linear-gradient(#6a879a 1px,transparent 1px),linear-gradient(90deg,#6a879a 1px,transparent 1px);background-size:48px 48px}
+.placeholder{position:relative;max-width:40rem}.placeholder strong{display:block;font-size:1.05rem;margin-bottom:.45rem}
+.placeholder span{color:#99aec0;font-size:.87rem}.foot{display:flex;align-items:center;justify-content:space-between;gap:.5rem;padding:.6rem .8rem;flex-wrap:wrap}
+.foot button{padding:.35rem .65rem;font-size:.85rem}.stream{color:#aac2d2;font-size:.84rem}
+.note{margin-top:1.25rem;padding:1rem 1.2rem;border:1px solid #355065;border-radius:9px;background:#172634;color:#b6c9d8}
+.note p{margin:.4rem 0}.note strong{color:#e8eff7}
+@media(max-width:790px){.grid{grid-template-columns:1fr}main{padding:.7rem}header{padding:1rem}#connection{margin-left:0}}
+</style>
+</head>
+<body>
+<header>
+<div><h1>CCTV · Live cameras</h1><p>Local NVR gateway · four-camera view</p></div>
+<nav><a href="/playback">Recording playback</a><a href="/api/status" target="_blank" rel="noopener">Gateway status</a></nav>
+</header>
+<main>
+<div class="toolbar" role="group" aria-label="Camera layout">
+<button type="button" id="grid" aria-pressed="true">▦ Four cameras</button>
+<button type="button" id="single" aria-pressed="false">▣ Selected camera</button>
+<button type="button" id="sd" aria-pressed="true">SD</button>
+<button type="button" id="hd" aria-pressed="false">HD</button>
+<button type="button" id="refresh">Refresh status</button>
+<span id="connection" role="status" aria-live="polite">Checking NVR…</span>
+</div>
+<section id="cameras" class="grid" aria-label="CCTV cameras"></section>
+<div class="note">
+<strong>Live video transport not connected yet.</strong>
+<p>This is the first live-view interface, with real camera connectivity information from the verified read-only <code>/api/status</code> endpoint. No video, snapshots, PTZ, audio or light/siren commands are sent. The original KP2P live-stream receiver still needs to be implemented and tested.</p>
+<p>SD and HD currently select the <em>intended</em> preview profile only. They do not change NVR recording settings. Recording playback remains available using the existing player.</p>
+</div>
+</main>
+<script>
+'use strict';
+const container=document.getElementById('cameras');
+const connection=document.getElementById('connection');
+const modeButtons={grid:document.getElementById('grid'),single:document.getElementById('single'),sd:document.getElementById('sd'),hd:document.getElementById('hd')};
+let selection=1;
+let layout='grid';
+let requestedProfile='sd';
+const channels=new Map();
+for(let n=1;n<=4;n++){
+  const tile=document.createElement('article');
+  tile.className='tile';
+  tile.dataset.channel=String(n);
+  tile.innerHTML=`<div class="tile-head"><h2>Camera ${n}</h2><span class="pill" data-role="status">Checking…</span></div>
+    <div class="screen"><div class="placeholder"><strong>Live feed pending</strong><span>Waiting for a verified KP2P live-stream receiver</span></div></div>
+    <div class="foot"><span class="stream" data-role="profile">SD · 800 × 448 planned</span><button type="button">Select camera ${n}</button></div>`;
+  const button=tile.querySelector('button');
+  button.addEventListener('click',()=>{selection=n;render()});
+  container.append(tile);
+  channels.set(n,tile);
+}
+function render(){
+  container.classList.toggle('single',layout==='single');
+  for(const [n,tile] of channels){
+    tile.hidden=layout==='single'&&n!==selection;
+    tile.classList.toggle('chosen',selection===n);
+    const effective=layout==='grid'?'sd':requestedProfile;
+    tile.querySelector('[data-role="profile"]').textContent=effective==='hd'
+      ?'HD · 1920 × 1080 planned':'SD · 800 × 448 planned';
+    tile.querySelector('button').textContent=selection===n?'Selected camera':'Select camera '+n;
+    tile.querySelector('button').setAttribute('aria-pressed',String(selection===n));
+  }
+  modeButtons.grid.setAttribute('aria-pressed',String(layout==='grid'));
+  modeButtons.single.setAttribute('aria-pressed',String(layout==='single'));
+  modeButtons.sd.setAttribute('aria-pressed',String(requestedProfile==='sd'));
+  modeButtons.hd.setAttribute('aria-pressed',String(requestedProfile==='hd'));
+  modeButtons.sd.disabled=layout==='grid';
+  modeButtons.hd.disabled=layout==='grid';
+}
+modeButtons.grid.addEventListener('click',()=>{layout='grid';render()});
+modeButtons.single.addEventListener('click',()=>{layout='single';render()});
+modeButtons.sd.addEventListener('click',()=>{requestedProfile='sd';render()});
+modeButtons.hd.addEventListener('click',()=>{requestedProfile='hd';render()});
+async function loadStatus(){
+  connection.textContent='Checking NVR…';
+  try{
+    const response=await fetch('/api/status',{cache:'no-store'});
+    if(!response.ok)throw Error('Gateway returned HTTP '+response.status);
+    const payload=await response.json();
+    if(!Array.isArray(payload.channels))throw Error('Invalid camera status response');
+    for(const [n,tile] of channels){
+      const row=payload.channels.find(c=>Number(c.ID)===n-1);
+      const pill=tile.querySelector('[data-role="status"]');
+      const online=Boolean(row&&row.Status==='Connect success'&&String(row.Enable).toLowerCase()!=='false');
+      pill.className='pill '+(online?'online':'offline');
+      pill.textContent=online?'NVR connected':row?'Not connected':'No status';
+      pill.title=row&&typeof row.Status==='string'?row.Status:'No channel data';
+    }
+    connection.textContent='NVR status updated · '+new Date().toLocaleTimeString('en-GB',{hour12:false});
+  }catch(err){
+    connection.textContent='Status unavailable: '+err.message;
+    for(const tile of channels.values()){
+      const pill=tile.querySelector('[data-role="status"]');
+      pill.className='pill';pill.textContent='Unknown';
+    }
+  }
+}
+document.getElementById('refresh').addEventListener('click',loadStatus);
+render();
+loadStatus();
+setInterval(()=>{if(!document.hidden)loadStatus()},15000);
+</script>
+</body>
+</html>
