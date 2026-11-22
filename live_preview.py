@@ -3,7 +3,9 @@ from contextlib import contextmanager
 from itertools import chain
 import os
 import subprocess
+import time
 from threading import Event, Thread
+from websockets.exceptions import WebSocketException
 
 from live_stream import receive_live
 
@@ -43,7 +45,14 @@ def jpeg_images(source):
 def mjpeg_preview(url, username, password, channel=0, stream=1):
     """Yield JPEGs as they arrive. Closing this context stops the KP2P stream."""
     with receive_live(url, username, password, channel, stream) as frames:
-        first = next((frame for frame in frames if frame.frame_type == 1), None)
+        first = None
+        first_deadline = time.monotonic() + 20
+        for candidate in frames:
+            if candidate.frame_type == 1:
+                first = candidate
+                break
+            if time.monotonic() > first_deadline:
+                raise TimeoutError("No live keyframe within 20 seconds")
         if first is None or first.codec not in ("H264", "H265"):
             raise ValueError("No supported video keyframe from NVR")
         format_name = "hevc" if first.codec == "H265" else "h264"
@@ -66,7 +75,7 @@ def mjpeg_preview(url, username, password, channel=0, stream=1):
                         if frame.codec != first.codec:
                             raise ValueError("Camera codec changed while streaming")
                         process.stdin.write(frame.data)
-            except (OSError, ValueError, TimeoutError) as error:
+            except (OSError, ValueError, TimeoutError, WebSocketException) as error:
                 if not stop.is_set():
                     errors.append(error)
 
