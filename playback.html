@@ -55,31 +55,51 @@ form.addEventListener('submit', async event => {
   const source = new MediaSource();
   const open = new Promise(resolve => source.addEventListener('sourceopen', resolve, {once:true}));
   objectURL = URL.createObjectURL(source);
+  video.pause();
+  video.style.visibility = 'hidden';
   video.src = objectURL;
   status.textContent = 'Waiting for the NVR…';
   try {
     const response = await fetch('/api/playback?' + params, {signal:request.signal});
     if (!response.ok) throw new Error((await response.json()).error);
-    const lead = Math.max(0, (requested - Number(response.headers.get('X-First-Frame-MS'))) / 1000);
+    const origin = response.headers.get('X-First-Frame-MS');
+    if (origin === null || !Number.isFinite(Number(origin))) throw new Error('Missing recording start timestamp.');
+    const lead = Math.max(0, (requested - Number(origin)) / 1000);
     await open;
     const buffer = source.addSourceBuffer(codec);
     const reader = response.body.getReader();
-    let started = false;
+    let seeking = false, started = false, complete = false;
+    const reveal = () => {
+      if (request !== controller || request.signal.aborted || video.seeking || video.currentTime < lead - 0.05) return;
+      started = true;
+      video.style.visibility = '';
+      status.textContent = complete ? 'Capture complete' : 'Playing while footage arrives';
+      video.play().catch(() => {
+        if (request === controller && video.paused) status.textContent = 'Press Play to watch with audio.';
+      });
+    };
+    video.addEventListener('seeked', () => { if (seeking && !started) reveal(); }, {signal:request.signal});
     while (true) {
       const {value, done} = await reader.read();
       if (done) break;
       await append(buffer, value);
-      if (!started && video.buffered.length && video.buffered.end(0) > lead) {
-        video.currentTime = Math.max(lead, video.buffered.start(0));
-        started = true;
-        status.textContent = 'Playing while footage arrives';
-        video.play().catch(() => {
-          if (request === controller && video.paused) status.textContent = 'Press Play to watch with audio.';
-        });
+      if (!seeking && video.readyState >= 1 && buffer.buffered.length &&
+          buffer.buffered.end(0) > lead + 0.05) {
+        seeking = true;
+        const target = Math.max(lead, buffer.buffered.start(0));
+        if (source.duration === Infinity) source.setLiveSeekableRange(buffer.buffered.start(0), buffer.buffered.end(0));
+        if (target > 0.01) {
+          status.textContent = 'Seeking to the requested time…';
+          video.currentTime = target;
+        } else {
+          reveal();
+        }
       }
     }
+    complete = true;
     if (source.readyState === 'open') source.endOfStream();
-    if (request === controller) status.textContent = started ? 'Capture complete' : 'Capture ended before the selected time.';
+    if (request === controller && !started && !seeking) status.textContent = 'Capture ended before the selected time.';
+    if (request === controller && started && !video.paused) status.textContent = 'Capture complete';
   } catch (error) {
     if (request === controller && !request.signal.aborted) status.textContent = error.message;
     request.abort();
@@ -87,6 +107,7 @@ form.addEventListener('submit', async event => {
 });
 
 function jog(seconds) {
+  if (video.style.visibility === 'hidden') return;
   for (let i = 0; i < video.buffered.length; i++) {
     const start = video.buffered.start(i), end = video.buffered.end(i);
     if (video.currentTime >= start && video.currentTime <= end) {
