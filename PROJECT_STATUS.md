@@ -171,13 +171,20 @@ Develop an **independent Linux CCTV server** with a **modern browser-based full 
 - **Agreed next work:** Extend the existing native live receiver to the other three SD cameras without altering proven replay functionality, then compare preview output at **5/10/15 fps** with four simultaneous feeds. Observe CPU, memory, latency and picture quality; consider full configured SD 15 fps as the target if the host can sustain it. Individual-camera HD may be evaluated later.
 - No claim is made that four feeds, higher fps or the planned deployment host have been tested.
 
+## Four-camera SD preview extension — code ready, hardware verification pending (22 November 2026)
+
+- **Confirmed basis:** Camera 1 SD produced continuous motion in Chrome, including a car passing and a person walking by. This existing path remains unchanged (native KP2P command 30/31, read-only stream start/stop, FFmpeg-to-MJPEG preview at 5 fps).
+- **Implemented in the existing repository:** `gateway.py` now accepts `/api/live?channel=1–4&stream=1`, validates the one-based channel number, maps to a zero-based native KP2P channel and holds an independent non-blocking lock per camera (one active browser preview per channel, up to four independent camera sessions). `live.html` provides individual Start/Stop buttons and Start all SD / Stop all; all streams remain manual, and the same compact 2×2 layout is retained. No changes to `live_stream.py`, `live_preview.py` or the playback transport.
+- **Not yet verified on hardware:** Cameras 2–4 actually delivering video; concurrent four-session operation; NVR capacity, CPU/memory/latency, stop/restart behaviour. The new frontend/backend have been source-reviewed but not run against the user's current workstation in this chat. No claim of four-stream success yet.
+- **Agreed follow-up:** Test Cameras 2–4 SD individually, then use **Start all SD** to observe four simultaneous feeds at the existing 5 fps. If stable, compare 10 and 15 fps in a later change, measuring decoding load and visible motion. Do not change the cameras' configured recording bitrates or exposure settings based only on the night-time 5 fps preview.
+
 ## COMPLETED — REMAINING — NEXT ACTION
 
 **COMPLETED:** Original discovery and HTTP snapshot path; local NVR HTTP/WebSocket/recording-search tests; playable HEVC sample reconstruction; firmware XOR decoding/extraction; static cloud, startup, hidden maintenance and LUI audits; **physical UART boot capture and interactive U-Boot access**; NVR restored to operation; independent-server/browser/HA project architecture agreed.
 
 **REMAINING:** Verify **interactive Linux shell** and runtime mounts when hardware access is next needed; establish on-demand SSH/Telnet only if safe without persistent changes; observe external cloud egress passively; develop continuous local stream receiver, full playback/download, complete browser interface and HA integration. Optional future task: identify feasible LUI/HDMI customisation.
 
-**NEXT ACTION:** Extend the now-verified continuously updating Camera 1 SD live path to Cameras 2–4 SD, then test all four at 5/10/15 fps and measure performance. Clean Stop behaviour and latency remain unmeasured; two-camera synchronised playback is a separate later task.
+**NEXT ACTION:** Pull and restart the existing gateway, verify Cameras 2, 3 and 4 SD individually, then verify four simultaneous live previews at 5 fps. Stop/restart behaviour, resource load, latency, and future 10/15 fps experiments remain to be evaluated. Preserve verified replay and single-camera stepping.
 
 ## Documentation and security rules
 
