@@ -58,11 +58,17 @@ ffplay clip.mp4
 
 The test prompts for the NVR password and reports frame count and first/last original timestamps. An MP4 output requires FFmpeg and preserves relative NVR frame timing without re-encoding. It retains the decode lead-in and includes an AAC track when the capture provides G.711A audio in the clip window. The summary reports `g711a_frames` and `audio_in_mp4`. Use a .h265 output for the previous raw mode. The summary reports the wait from the start of the replay request to the first frame in range. The client sends a playback stop request at the end and closes the WebSocket. The mock WebSocket test passed. Live retrieval was verified on the physical NVR. The captured clip played cleanly in FFplay at 15 fps on Nobara. Exact seek alignment remains open.
 
-## Live camera dashboard (interface groundwork)
+## Camera dashboard and experimental live preview (22 November 2026)
 
-Start the existing gateway and open `http://127.0.0.1:8080/live` (or your configured local port). The new page displays four camera tiles and the NVR's actual connection indicators from the verified read-only `/api/status` endpoint. It includes four-camera and single-camera layouts, camera selection, and SD/HD *intended view* preferences. It refreshes status every 15 seconds while visible.
+Start the existing gateway using the playback virtual environment (which includes `websockets` and `cryptography`), and ensure FFmpeg is installed. Open `http://127.0.0.1:8080/live` (substitute your local gateway port). The page shows the four NVR-connected cameras, a compact grid/single-camera layout and status refresh every 15 seconds.
 
-**Live video is not implemented yet.** The NVR's native KP2P `open_stream` / `close_stream` calls are identified in vendor JavaScript but their packet encoding and continuous frame reception have not been validated in this Python gateway. The page makes no live-stream or camera-control requests and does not alter NVR encoding settings. The established `/playback` recording player remains unchanged. The next milestone is validating the KP2P live receiver, starting with Camera 1 SD.
+**First hardware test — Camera 1 SD only:** Click **Start SD live** in Camera 1's tile. This opens a new, authenticated KP2P live session and returns a 5 fps MJPEG image stream over the existing loopback HTTP gateway at `/api/live?channel=1&stream=1`. Click **Stop live** to close it. The stream is intentionally on-demand and limited to one active viewer to constrain CPU usage. Other cameras, HD quality and audio are not yet implemented. The page's SD/HD indicators for other tiles remain placeholders and HD switching is disabled.
+
+The new `live_stream.py` reproduces the exact vendor JavaScript `import.js` live request: command 30, body `<3I` (zero-based channel, 0 main/1 substream, 2 start/1 stop), command 31 response; it reassembles live FRAM/FRAN video data. `live_preview.py` uses FFmpeg for HEVC/H.264-to-MJPEG conversion. This code and its synthetic packet regression tests are committed, but **the actual physical NVR live-stream path has not yet been verified**. Errors should be read from the gateway terminal; an HTTP 502 or browser image failure does not imply the NVR lacks live-stream support.
+
+Run offline protocol tests with `~/.venvs/cctv-playback/bin/python -m unittest discover -s tests -p 'test_live_stream.py' -v` from the repo root. Tests are supplied, not yet executed on the user's workstation.
+
+The playback transport, existing `/playback` player and replay cache have not been altered. The live viewer does not change NVR settings or send PTZ commands.
 
 ## Browser playback preview
 
