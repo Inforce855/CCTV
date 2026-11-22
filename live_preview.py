@@ -58,8 +58,9 @@ def preview_command(codec, source_fps, output_fps):
 
 
 @contextmanager
-def mjpeg_preview(url, username, password, channel=0, stream=1, fps=5):
-    """Yield JPEGs at the chosen preview fps; closing stops the KP2P stream."""
+def mjpeg_preview(url, username, password, channel=0, stream=1, fps=5,
+                  on_source_frame=None):
+    """Yield JPEGs while optionally observing encoded frames fed to FFmpeg."""
     if fps not in (5, 10, 15):
         raise ValueError("Unsupported browser preview frame rate")
     with receive_live(url, username, password, channel, stream) as frames:
@@ -90,6 +91,8 @@ def mjpeg_preview(url, username, password, channel=0, stream=1, fps=5):
                         if frame.codec != first.codec:
                             raise ValueError("Camera codec changed while streaming")
                         process.stdin.write(frame.data)
+                        if on_source_frame is not None:
+                            on_source_frame(frame.timestamp_ms)
             except (OSError, ValueError, TimeoutError, WebSocketException) as error:
                 if not stop.is_set():
                     errors.append(error)
