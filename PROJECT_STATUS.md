@@ -132,7 +132,7 @@ Develop an **independent Linux CCTV server** with a **modern browser-based full 
 
 ## Replay cache (22 November 2026)
 
-- The loopback gateway caches up to four complete browser clips in memory, up to 8 MiB each. Cache keys include camera, requested start, duration and recording type. An HTTP fixture test verified that identical requests bypass the replay source, partial captures are excluded and older entries are evicted. Live Camera 4 cache verification is pending.
+- The loopback gateway caches up to four complete browser clips in memory, up to 32 MiB each. Cache keys include camera, requested start, duration and recording type. An HTTP fixture test verified that identical requests bypass the replay source, partial captures are excluded and older entries are evicted. The first live repeat appeared to reload. The cache now admits clean captures ending within 100 ms of the requested boundary, even when the recorder sends no frame at or beyond the boundary, and logs hits, misses and admission failures. A fixture verified the near-boundary case and exclusion of an early truncation. Live retest remains pending.
 
 ## COMPLETED — REMAINING — NEXT ACTION
 
