@@ -101,7 +101,7 @@ class LivePreviewRateTests(unittest.TestCase):
                     )
                     # JPEG SOI marker occurs once per image; JPEG entropy
                     # data escapes literal 0xff bytes.
-                    self.assertEqual(result.stdout.count(b"\\xff\\xd8"), expected)
+                    self.assertEqual(result.stdout.count(bytes((0xFF, 0xD8))), expected)
 
     def test_invalid_ffmpeg_rate_rejected(self):
         for fps in (0, 1, 7, 16, 100):
