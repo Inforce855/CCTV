@@ -371,13 +371,20 @@ Develop an **independent Linux CCTV server** with a **modern browser-based full 
 - **Next single test:** Run FFprobe in video-only TCP mode against candidate `/ch0_0.264` (do not print any nonblank credentials) and check whether it reaches SETUP/PLAY and reports resolution/codecs. A successful test would suggest the original root URI was not a playable media resource; a failure would leave RTSP path/server SETUP behaviour unresolved. The `.264` suffix is a vendor path convention, not proof that H.264 rather than H.265 is encoded.
 - **Preserve:** The four-camera NVR KP2P live preview, NVR recording search/playback/cache and Home Assistant direct JPEG snapshots remain working. No changes to app, firmware, camera settings or RTMP.
 
+## Direct camera RTSP live access works at documented alternate media path (22 November 2026)
+
+- **Physical camera test PASSED:** After both FFmpeg and VLC failed to SETUP the RTSP root `/`, Tim ran FFprobe against **`rtsp://<camera>:554/ch0_0.264`** with Digest-capable credentials and `-rtsp_transport tcp -allowed_media_types video`. This path **worked**: FFprobe negotiated the media stream, displayed `Input #0, rtsp`, and returned a video stream description. The failing root path should not be retried as if equivalent.
+- **Actual returned media:** **HEVC / H.265 Main**, **1920×1080**, `yuvj420p`, display line `15 fps, 10 tbr, 90k tbn`, `codec_name=hevc`, `codec_type=video`, `width=1920`, `height=1080`, `r_frame_rate=10/1`. The `.264` suffix is only the camera's media URL convention and does **not** imply H.264 encoding.
+- **Important uncertainty:** FFprobe's `15 fps` and `10 tbr` are inconsistent indicators of timing, and the completed FFprobe metadata test does **not** establish 15 distinct frames/second or end-to-end delay. The earlier NVR KP2P SD feed measured 10 incoming timestamped fps; the previously reviewed recording MP4 has a 15 fps timeline. Direct stream real-time frame cadence and latency are **not yet hardware-verified**.
+- **Hybrid route now feasible to evaluate:** Camera-direct RTSP for live, retain existing NVR recording search/playback/cache, and preserve verified KP2P four-camera SD live as rollback. Do not modify current gateway, camera configuration, RTMP or NVR until direct-source stability, timing and CPU have been compared and the user approves an implementation change. Keep camera addresses and authentication tokens out of public repository.
+
 ## COMPLETED — REMAINING — NEXT ACTION
 
 **COMPLETED:** Original discovery and HTTP snapshot path; local NVR HTTP/WebSocket/recording-search tests; playable HEVC sample reconstruction; firmware XOR decoding/extraction; static cloud, startup, hidden maintenance and LUI audits; **physical UART boot capture and interactive U-Boot access**; NVR restored to operation; independent-server/browser/HA project architecture agreed.
 
 **REMAINING:** Verify **interactive Linux shell** and runtime mounts when hardware access is next needed; establish on-demand SSH/Telnet only if safe without persistent changes; observe external cloud egress passively; develop continuous local stream receiver, full playback/download, complete browser interface and HA integration. Optional future task: identify feasible LUI/HDMI customisation.
 
-**NEXT ACTION:** VLC 3.0.24 also failed audio/video SETUP for camera RTSP root `/`; not FFmpeg-only. Test one externally documented path `/ch0_0.264` (reported working with the same `happytime rtsp server 2.2` signature on a different camera) using read-only FFprobe, then decide on further direct RTSP work from its actual result. Preserve four-camera NVR live and playback/cache.
+**NEXT ACTION:** Camera 1's alternate RTSP media URL `/ch0_0.264` **works** and reports 1920×1080 HEVC (15 fps display but `r_frame_rate=10/1`). Measure actual delivered live frame cadence and observe direct live latency before integrating camera-direct RTSP into the existing gateway. Keep NVR replay/cache and working NVR KP2P live fallback unchanged.
 
 ## Documentation and security rules
 
