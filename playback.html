@@ -6,6 +6,8 @@
 <style>
 body {font: 1rem system-ui; max-width: 68rem; margin: 2rem auto; padding: 0 1rem; background: #161b23; color: #f1f5fa}
 form, nav {display:flex; flex-wrap:wrap; gap:.75rem; align-items:end}
+nav {justify-content:center; gap:.5rem}
+nav button {min-width:2.5rem}
 label {display:grid; gap:.25rem}
 input, select, button {font:inherit; padding:.45rem; border-radius:.35rem}
 video {display:block; width:100%; max-height:70vh; margin:1rem 0; background:#080b10}
@@ -21,10 +23,13 @@ video {display:block; width:100%; max-height:70vh; margin:1rem 0; background:#08
 <p id="lead-in" hidden></p>
 <p role="status">Audio and video preview</p>
 <video controls playsinline></video>
-<nav aria-label="Buffered playback">
-<button id="back">−5 seconds</button><button id="ahead">+5 seconds</button>
-<button id="previous-frame" disabled>Previous frame</button>
-<button id="next-frame" disabled>Next frame</button>
+<nav aria-label="Playback controls">
+<button id="back" type="button" aria-label="Back five seconds">−5 sec</button>
+<button id="previous-frame" type="button" aria-label="Previous frame" title="Previous frame" disabled>&lt;</button>
+<button id="pause" type="button">Pause</button>
+<button id="play" type="button">Play</button>
+<button id="next-frame" type="button" aria-label="Next frame" title="Next frame" disabled>&gt;</button>
+<button id="ahead" type="button" aria-label="Forward five seconds">+5 sec</button>
 </nav>
 <script>
 const video = document.querySelector('video');
@@ -169,6 +174,13 @@ function jog(seconds) {
     }
   }
 }
+document.querySelector('#pause').onclick = () => video.pause();
+document.querySelector('#play').onclick = () => {
+  if (!video.buffered.length) return;
+  video.play().catch(() => {
+    status.textContent = 'Unable to start playback.';
+  });
+};
 document.querySelector('#back').onclick = () => jog(-5);
 document.querySelector('#ahead').onclick = () => jog(5);
 </script>
