@@ -186,13 +186,21 @@ Develop an **independent Linux CCTV server** with a **modern browser-based full 
 - **Preservation:** No application code was modified to record this successful hardware result. The verified replay player/cache and frame stepping are unchanged.
 - **Next action:** Test raising the browser preview output to **10 fps**, then **15 fps**, under four-camera load, observing CPU, memory, visible motion, latency and picture quality. Keep results separate from assumptions; confirm settings only after hardware test.
 
+## Independent 5 / 10 / 15 fps controls added for four SD previews (22 November 2026)
+
+- **Current verified baseline preserved:** Four SD live pictures were simultaneously shown in Chrome on 22 November 2026 at the original 5 fps MJPEG preview setting, over separate authenticated KP2P live sessions. Tim confirmed all four working. The NVR SD streams remain configured for 15 fps, 800 × 448.
+- **Implemented, not yet hardware-tested at new rates:** Each camera tile in `live.html` now has its own compact **5 / 10 / 15 fps** control with 5 fps selected by default. Selecting a different rate on an active preview automatically stops and reconnects that camera after a short delay, with up to four retry attempts for slow stream teardown; other live camera previews are left running. Selecting while stopped stores the desired value for that camera's next Start. No extra service or alternate architecture.
+- **Gateway:** `/api/live?channel=N&stream=1&fps=F` validates one-based channel N=1–4 and F ∈ {5,10,15}; `fps` is optional for backwards-compatible 5 fps default. Existing per-camera viewer locks remain in place. `live_preview.py` passes the requested rate into FFmpeg's `fps=F` output filter; native KP2P stream rate, NVR encoding and recording settings are unchanged. No changes to proven replay or caching code.
+- **Verification:** In-chat review confirms the committed browser JavaScript compiles. `tests/test_live_preview_fps.py` contains offline tests for accepted/rejected query values and the selected FFmpeg filter, but these tests **have not been executed in the user's Nobara environment**. Do not claim 10/15 fps or live switching works until checked on the NVR.
+- **Next action:** Pull the latest GitHub branch and restart the same gateway (port 8082); first test a single camera at 10 and 15 fps, including switching while active; then test mixed rates and all four at 15 fps. Check CPU/memory, smoothness and live-view delay. Existing night-time exposure-related ghosting may remain at higher preview fps.
+
 ## COMPLETED — REMAINING — NEXT ACTION
 
 **COMPLETED:** Original discovery and HTTP snapshot path; local NVR HTTP/WebSocket/recording-search tests; playable HEVC sample reconstruction; firmware XOR decoding/extraction; static cloud, startup, hidden maintenance and LUI audits; **physical UART boot capture and interactive U-Boot access**; NVR restored to operation; independent-server/browser/HA project architecture agreed.
 
 **REMAINING:** Verify **interactive Linux shell** and runtime mounts when hardware access is next needed; establish on-demand SSH/Telnet only if safe without persistent changes; observe external cloud egress passively; develop continuous local stream receiver, full playback/download, complete browser interface and HA integration. Optional future task: identify feasible LUI/HDMI customisation.
 
-**NEXT ACTION:** Four-camera SD display is confirmed. Compare 10 fps and then 15 fps browser preview under simultaneous load, measuring CPU/memory, effective cadence, latency and clarity; assess clean Stop/restart separately. Keep the working replay, cache and frame stepping unchanged.
+**NEXT ACTION:** Test the new independent 5/10/15 fps switches on the physical NVR: one camera at 10/15 fps and while running, then four concurrent streams at mixed/full rates. Observe CPU/memory, lag, smoothness and stop/restart; preserve proven recording playback, replay cache and frame stepping.
 
 ## Documentation and security rules
 
