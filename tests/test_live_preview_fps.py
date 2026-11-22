@@ -2,7 +2,7 @@
 import unittest
 
 from gateway import live_preview_query
-from live_preview import preview_command
+from live_preview import effective_live_input_fps, preview_command
 
 
 class LivePreviewRateTests(unittest.TestCase):
@@ -46,6 +46,28 @@ class LivePreviewRateTests(unittest.TestCase):
                                      "15")
                     self.assertEqual(command[command.index("-f") + 1],
                                      "hevc" if codec == "H265" else "h264")
+
+    def test_verified_sd_profile_uses_measured_10_fps_input_timebase(self):
+        for stream, expected in ((1, 10), (0, 15)):
+            with self.subTest(stream=stream):
+                self.assertEqual(
+                    effective_live_input_fps(15, stream, 800, 448), expected
+                )
+        command = preview_command(
+            "H265", effective_live_input_fps(15, 1, 800, 448), 10
+        )
+        self.assertEqual(command[command.index("-framerate") + 1], "10")
+        self.assertEqual(command[command.index("-vf") + 1], "fps=10")
+
+    def test_unknown_live_profiles_retain_advertised_timebase(self):
+        examples = ((10, 1, 800, 448), (15, 1, 1280, 720),
+                    (20, 1, 800, 448), (15, 0, 800, 448))
+        for advertised, stream, width, height in examples:
+            with self.subTest(profile=(advertised, stream, width, height)):
+                self.assertEqual(
+                    effective_live_input_fps(advertised, stream, width, height),
+                    advertised
+                )
 
     def test_invalid_ffmpeg_rate_rejected(self):
         for fps in (0, 1, 7, 16, 100):
