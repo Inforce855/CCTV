@@ -41,6 +41,19 @@ def jpeg_images(source):
                 break
 
 
+def effective_live_input_fps(advertised_fps, stream, width, height):
+    """Correct the verified Hiseeu SD input time base.
+
+    On this NVR all four 800x448 SD feeds advertise 15 fps, but their
+    frame headers advance by 100 ms (10 real video frames/s). Using the
+    advertised value compresses FFmpeg timestamps by a factor of 2/3.
+    Leave unknown profiles unchanged rather than assuming they run at 10.
+    """
+    if stream == 1 and advertised_fps == 15 and (width, height) == (800, 448):
+        return 10
+    return advertised_fps
+
+
 def preview_command(codec, source_fps, output_fps):
     """Build the MJPEG encoder command for one SD camera preview."""
     if codec not in ("H264", "H265") or not 1 <= source_fps <= 120:
@@ -74,8 +87,11 @@ def mjpeg_preview(url, username, password, channel=0, stream=1, fps=5,
                 raise TimeoutError("No live keyframe within 20 seconds")
         if first is None or first.codec not in ("H264", "H265"):
             raise ValueError("No supported video keyframe from NVR")
+        source_fps = effective_live_input_fps(
+            first.fps, stream, first.width, first.height
+        )
         process = subprocess.Popen(
-            preview_command(first.codec, first.fps, fps),
+            preview_command(first.codec, source_fps, fps),
             stdin=subprocess.PIPE, stdout=subprocess.PIPE,
             stderr=subprocess.DEVNULL, bufsize=0
         )
