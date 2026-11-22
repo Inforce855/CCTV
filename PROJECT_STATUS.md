@@ -215,6 +215,12 @@ Develop an **independent Linux CCTV server** with a **modern browser-based full 
 - **Implementation scope:** Only `gateway.py`, `live_preview.py` and `live.html` were changed for instrumentation. Existing NVR KP2P frame parsing, FFmpeg encoding settings, 5/10/15 selectors, multistream start/stop, recording replay and cache remain intact. Instrumentation callback fires on successful input-pipe writes; output counter advances after successful HTTP multipart writes. `tests/test_live_fps_meter.py` added for rolling rates and lifecycle, but hardware testing and execution of the new unit tests on the user's Nobara environment are **still outstanding**. The browser JavaScript syntax was checked in the tool environment.
 - **Next action:** Pull GitHub and restart the existing gateway. Start all four cameras and record the measured **In / Out** figures at selected preview rates, especially 15 fps. Measure further only if the counters show evidence of duplication, dropping or buffering.
 
+## First measured browser live FPS readings (22 November 2026)
+
+- Tim reports the new live FPS meter displaying **In and Out mostly 10.0 / 10.0 fps**, varying around **9.8–10.2 fps**. The selected 5/10/15 fps setting and individual camera(s) were **not specified** in that report; do not assume the selector was at 15 fps.
+- Instrumentation meanings: **In** counts encoded video frames successfully written to FFmpeg's input pipe; **Out** counts JPEG images successfully written to the loopback HTTP response. Near-equal readings suggest no measurable loss between these instrumented points over the rolling window, but cannot prove 10 distinct pictures rendered by Chrome, rule out FFmpeg backpressure, or establish the NVR's intrinsic source cadence.
+- **Next narrow check:** Record the selected preview rate (5, 10, or 15) for this observation. If set to 15, investigate the source/FFmpeg throughput mismatch with measured evidence before modifying working video transport. Preserve verified four-camera preview, recording playback and cache.
+
 ## COMPLETED — REMAINING — NEXT ACTION
 
 **COMPLETED:** Original discovery and HTTP snapshot path; local NVR HTTP/WebSocket/recording-search tests; playable HEVC sample reconstruction; firmware XOR decoding/extraction; static cloud, startup, hidden maintenance and LUI audits; **physical UART boot capture and interactive U-Boot access**; NVR restored to operation; independent-server/browser/HA project architecture agreed.
