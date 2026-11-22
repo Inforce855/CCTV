@@ -147,6 +147,8 @@ Develop an **independent Linux CCTV server** with a **modern browser-based full 
 - **Verified recent replay:** A Camera 1 ten-second HD replay within the current hour succeeded with 150 in-range frames, G.711A audio and original HEVC remuxed to seekable MP4; therefore waiting for an NVR one-hour block to close is not required for that tested window. Planned rolling two-day local archive is not yet implemented.
 - **Next action:** Visually verify `/live` and the status/channel mapping, then implement/test the genuine live KP2P stream-open protocol starting with Camera 1 SD. Do not misrepresent replay as real-time video.
 
+- **Live UI sizing revision (22 November 2026):** Tim's Chrome screenshot verified all four NVR-connected indicators and the `/live` dashboard, but the original intrinsic 16:9 tile dimensions pushed the second row below the viewport. Revised `live.html` to use a viewport-height flex layout, a constrained 2×2 grid, compact headings/footers, and a collapsed implementation-note section. This change is committed but **awaits a browser recheck**. No live receiver or playback code was changed.
+
 ## COMPLETED — REMAINING — NEXT ACTION
 
 **COMPLETED:** Original discovery and HTTP snapshot path; local NVR HTTP/WebSocket/recording-search tests; playable HEVC sample reconstruction; firmware XOR decoding/extraction; static cloud, startup, hidden maintenance and LUI audits; **physical UART boot capture and interactive U-Boot access**; NVR restored to operation; independent-server/browser/HA project architecture agreed.
