@@ -34,6 +34,17 @@ Both routes passed mock HTTP integration checks and a live smoke test from Nobar
 
 The original firmware, evidence bundles, footage, private endpoint credentials and unsanitised capture logs are not included in this repository. Historical investigation details and outstanding uncertainties are recorded in [PROJECT_STATUS.md](PROJECT_STATUS.md).
 
+## Offline playback check
+
+With the private Operation De-Hulk WebSocket capture in your working directory, recover the first camera’s HEVC and its original frame timestamps:
+
+```sh
+python3 playback.py hiseeu_raw_websocket.bin recovered.h265 > frames.jsonl
+ffplay -framerate 10 -f hevc recovered.h265
+```
+
+The 10 fps preview cadence matches the observed interval in this fixture. The JSON Lines output retains the exact timestamps for later playback integration. The capture is kept private. Live WebSocket playback is the next step.
+
 ## Target application
 
 - **Standalone Linux service:** Handles NVR/camera connections, stream delivery, recording search/playback, management functions and a local API, independently of Home Assistant.
