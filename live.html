@@ -56,7 +56,7 @@ button[aria-pressed=true]{background:#155877;border-color:#51cdfb}button:disable
 <details class="note">
 <summary>Four-camera SD preview — frame-rate testing</summary>
 <p>All four SD pictures were confirmed working together in Chrome. Each tile has its own 5 / 10 / 15 fps preview setting (initially 5 fps). A rate change while playing automatically restarts only that camera's preview; allow a moment for the previous stream to close. Other cameras remain on their selected rates.</p>
-<p>Each camera heading now shows <strong>In</strong> (encoded NVR video frames per second fed to FFmpeg) and <strong>Out</strong> (JPEG images per second sent by the gateway). Values are measured over a rolling five-second interval and refresh every two seconds. These counters do not guarantee visually distinct pictures, actual browser rendering rate or end-to-end latency.</p>
+<p>Each camera heading shows <strong>In</strong> (encoded NVR frames per second handed to FFmpeg), <strong>Out</strong> (JPEGs written to Chrome) and <strong>TS</strong> (median interval between the NVR’s original frame timestamps). At 15 fps, TS should be near 67 ms; at 10 fps, near 100 ms. Values use a rolling five-second window and update every two seconds. They do not guarantee visually different frames, Chrome rendering rate or end-to-end latency.</p>
 <p>The 5/10/15 switches control only browser preview conversion, not the NVR's SD encoder, exposure, recording or motion detection. HD and audio remain pending; recording playback is unchanged.</p>
 </details>
 </main>
@@ -293,10 +293,15 @@ async function loadLiveMetrics(){
       }
       const inFps=typeof data.source_fps==='number'?data.source_fps.toFixed(1):'—';
       const outFps=typeof data.jpeg_fps==='number'?data.jpeg_fps.toFixed(1):'—';
-      label.textContent='In '+inFps+' · Out '+outFps+' fps';
-      label.title='Measured NVR encoded video input: '+inFps+
-        ' fps. Gateway JPEG images sent: '+outFps+
-        ' fps. Five-second rolling window. These are not browser rendering measurements.';
+      const tsStep=typeof data.nvr_timestamp_gap_ms==='number'
+        ?data.nvr_timestamp_gap_ms.toFixed(1)+'ms':'—';
+      const tsFps=typeof data.nvr_timestamp_fps==='number'
+        ?data.nvr_timestamp_fps.toFixed(1)+' fps':'unknown';
+      label.textContent='In '+inFps+' · Out '+outFps+' · TS '+tsStep;
+      label.title='In: '+inFps+' fps handed to FFmpeg. Out: '+outFps+
+        ' JPEG/s written to Chrome. TS: median NVR frame timestamp interval '+
+        tsStep+' (timestamp cadence '+tsFps+'). Measured over five seconds; '+
+        'not unique-pixel or browser-render-rate measurements.';
     }
   }catch(error){
     for(let n=1;n<=4;n++){
