@@ -94,7 +94,7 @@ The original saved `Netword video client_files/import.js` was re-examined, rathe
 - Stream selection: `0` main (HD), `1` substream (SD). Camera/channel indices start at zero.
 - Video reception: `FRAM`/optional `FRAN` prefix, a 24-byte common frame header with type `0` for live, an 8-byte live head, a 24-byte codec/video-parameter header and eight additional bytes before raw video data. The video callback exposes codec, frames per second, width, height, channel and I/P-frame type. Multi-packet frame reassembly must be maintained.
 
-The new `live_stream.py` requests this exact live command through the already tested login transport. The new on-demand `/api/live?channel=1&stream=1` route feeds a 5 fps MJPEG preview via FFmpeg to Camera 1 in the existing `/live` page. **Only the original vendor JavaScript command layout and offline synthetic packet tests are confirmed at this point; a live-camera hardware test remains outstanding.** No PTZ or NVR configuration writes are sent.
+The native `live_stream.py` requests this command through the already tested login transport. **Camera 1 SD continuous moving video was verified in Chrome on the physical NVR on 22 November 2026.** The on-demand `/api/live?channel=N&stream=1` route now supports N=1–4 (one-based browser numbering, mapped to zero-based native channels), with one independent KP2P session and 5 fps MJPEG conversion per active camera. The additional three camera previews and simultaneous four-camera operation are **implemented but not yet hardware-verified**. The gateway remains loopback-only; no PTZ or NVR configuration writes are sent.
 
 ## Video data / recording playback
 
