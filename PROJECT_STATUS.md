@@ -259,13 +259,19 @@ Develop an **independent Linux CCTV server** with a **modern browser-based full 
 - **Code/tests:** `live_preview.py` now accepts `preview_command(..., retime_input=False)` and calls it with `retime_input=(source_fps != first.fps)`, ensuring the explicit PTS correction only applies to the previously hardware-confirmed SD profile. `tests/test_live_preview_fps.py` checks the revised filter and includes a real FFmpeg/libx265 integration test. The actual integration sample has been independently exercised here with FFmpeg; the full committed Python tests have not yet run on the user's Nobara machine.
 - **NEXT:** Pull and restart the current gateway; run `test_live_preview_fps.py`, then remeasure one camera at 5/10/15 fps after startup: predicted In≈10, Out≈5/10/15, TS≈100.0ms. If these values now match, retest other cameras without extra modifications; if not, inspect actual subprocess/filter behaviour. The observed roughly two-second HA delay remains a separate open item.
 
+## Physical NVR confirms second FPS timing correction (22 November 2026)
+
+- **User verified after pulling/restarting gateway:** At preview selections **5, 10 and 15 fps**, the live meter shows **In≈10 fps** and **Out≈5, 10 and 15 fps**, respectively, confirming the new decoded-frame `setpts=N/(10*TB)` filter corrects the previous two-thirds output-rate mismatch on the real NVR. Earlier TS measurements were a constant **100.0 ms for all four SD channels**. This supersedes the unsuccessful `-framerate`-only change.
+- **Interpretation:** The NVR supplies about **10 timestamped encoded frames/s** to the live preview. The 5 fps setting discards roughly half, 10 fps displays up to one per incoming frame, and 15 fps requires FFmpeg to **duplicate roughly five pictures each second**; an Out=15 counter counts sent JPEG images, not fifteen distinct camera captures. It does not prove that all ten encoded source frames have visually different pixel contents. **10 fps is the sensible efficient default** while the source remains at this cadence, although the UI currently defaults to 5 fps and no change has yet been requested or made.
+- **Still open:** Why metadata advertises 15 fps while live frames carry 100-ms timestamps; live preview ~2 seconds behind the Home Assistant view; CPU/memory and latency under different preview rates. Preserve the now user-verified four-camera stream and FFmpeg timing fix, recording replay and cache. No code alteration required from these confirmed results.
+
 ## COMPLETED — REMAINING — NEXT ACTION
 
 **COMPLETED:** Original discovery and HTTP snapshot path; local NVR HTTP/WebSocket/recording-search tests; playable HEVC sample reconstruction; firmware XOR decoding/extraction; static cloud, startup, hidden maintenance and LUI audits; **physical UART boot capture and interactive U-Boot access**; NVR restored to operation; independent-server/browser/HA project architecture agreed.
 
 **REMAINING:** Verify **interactive Linux shell** and runtime mounts when hardware access is next needed; establish on-demand SSH/Telnet only if safe without persistent changes; observe external cloud egress passively; develop continuous local stream receiver, full playback/download, complete browser interface and HA integration. Optional future task: identify feasible LUI/HDMI customisation.
 
-**NEXT ACTION:** Test the second timing correction (decoded-frame `setpts=N/(10*TB)` before the FPS selector) on the NVR after the first `-framerate`-only change was confirmed ineffective. Verify In≈10, Out≈5/10/15 and TS≈100ms, then assess HA delay separately; preserve four-camera live and recording replay/cache.
+**NEXT ACTION:** The 5/10/15 output-rate correction is confirmed on the physical NVR. Preserve it; investigate the approximately two-second live-view lag against Home Assistant and the NVR's advertised 15 fps versus observed 10 fps only with targeted measurements. The efficient current preview choice is 10 fps (no additional distinct frames at 15). Preserve four-camera live and recording replay/cache.
 
 ## Documentation and security rules
 
