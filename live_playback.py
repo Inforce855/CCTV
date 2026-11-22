@@ -1,5 +1,6 @@
 """Retrieve one short recording window from a Hiseeu NVR over the LAN."""
 import argparse
+from contextlib import contextmanager
 from datetime import datetime
 import getpass
 import json
@@ -106,7 +107,9 @@ def expect_reply(socket, session, stage, transport_commands, app_command=None):
     raise TimeoutError(f"{stage}: no expected reply (received {', '.join(sorted(seen)) or 'no protocol commands'})")
 
 
-def receive_clip(url, username, password, channel, start, end, kinds, output, timestamps=None, audio=None):
+@contextmanager
+def replay_frames(url, username, password, channel, start, end, kinds):
+    """Yield complete frames as they arrive and stop replay on context exit."""
     session = secrets.randbelow(10_000) + 1
     with connect(url, open_timeout=8, close_timeout=2, ping_interval=None,
                  compression=None, max_size=2 * 1024 * 1024, proxy=None) as socket:
@@ -119,51 +122,56 @@ def receive_clip(url, username, password, channel, start, end, kinds, output, ti
         expect_reply(socket, session, "NVR login", (19, 43), 11)
         replay = application(40, 2, replay_payload(3, channel, start, end, kinds))
         send(socket, transport(19, session, replay))
-        count = 0
-        first = last = first_in_range = None
-        first_in_range_wait = None
-        before_start = in_range = keyframes = 0
-        stop_reason = "deadline"
-        capture_started = time.monotonic()
-        audio_bytes = 0
+        started = time.monotonic()
+        deadline = started + (end - start) + 45
         try:
-            deadline = capture_started + (end - start) + 45
-            for frame in frames(recording_frames(socket, session, deadline), allow_incomplete_tail=True):
-                if frame.channel != channel:
-                    continue
-                if audio is not None and frame.codec == "G711A" and frame.frame_type == 0:
-                    audio_bytes += len(frame.data)
-                    if audio_bytes > MAX_AUDIO_BYTES:
-                        raise ValueError("Playback exceeded the audio size limit")
-                    audio.append(frame)
-                if frame.codec != "H265":
-                    continue
-                if frame.timestamp_ms >= end * 1000:
-                    stop_reason = "end_timestamp"
-                    break
-                if not count and frame.frame_type != 1:
-                    continue
-                if output.tell() + len(frame.data) > MAX_OUTPUT:
-                    raise ValueError("Playback exceeded the clip size limit")
-                first = frame.timestamp_ms if first is None else first
-                last = frame.timestamp_ms
-                output.write(frame.data)
-                if timestamps is not None:
-                    timestamps.append(frame.timestamp_ms)
-                count += 1
-                keyframes += frame.frame_type == 1
-                if frame.timestamp_ms < start * 1000:
-                    before_start += 1
-                else:
-                    if first_in_range is None:
-                        first_in_range = frame.timestamp_ms
-                        first_in_range_wait = round(time.monotonic() - capture_started, 3)
-                    in_range += 1
+            yield frames(recording_frames(socket, session, deadline), allow_incomplete_tail=True), started
         finally:
             try:
                 send(socket, transport(19, session, application(40, 3, replay_payload(2))))
             except (OSError, WebSocketException):
                 pass
+
+
+def receive_clip(url, username, password, channel, start, end, kinds, output, timestamps=None, audio=None):
+    with replay_frames(url, username, password, channel, start, end, kinds) as (stream, capture_started):
+        count = 0
+        first = last = first_in_range = None
+        first_in_range_wait = None
+        before_start = in_range = keyframes = 0
+        stop_reason = "deadline"
+        audio_bytes = 0
+        for frame in stream:
+            if frame.channel != channel:
+                continue
+            if audio is not None and frame.codec == "G711A" and frame.frame_type == 0:
+                audio_bytes += len(frame.data)
+                if audio_bytes > MAX_AUDIO_BYTES:
+                    raise ValueError("Playback exceeded the audio size limit")
+                audio.append(frame)
+            if frame.codec != "H265":
+                continue
+            if frame.timestamp_ms >= end * 1000:
+                stop_reason = "end_timestamp"
+                break
+            if not count and frame.frame_type != 1:
+                continue
+            if output.tell() + len(frame.data) > MAX_OUTPUT:
+                raise ValueError("Playback exceeded the clip size limit")
+            first = frame.timestamp_ms if first is None else first
+            last = frame.timestamp_ms
+            output.write(frame.data)
+            if timestamps is not None:
+                timestamps.append(frame.timestamp_ms)
+            count += 1
+            keyframes += frame.frame_type == 1
+            if frame.timestamp_ms < start * 1000:
+                before_start += 1
+            else:
+                if first_in_range is None:
+                    first_in_range = frame.timestamp_ms
+                    first_in_range_wait = round(time.monotonic() - capture_started, 3)
+                in_range += 1
     if count < 2:
         raise ValueError("The NVR did not return a playable HEVC sequence for that window")
     return {
