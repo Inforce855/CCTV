@@ -10,6 +10,7 @@ from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 import json
 import os
 from pathlib import Path
+from statistics import median
 import re
 from threading import Lock
 import time
@@ -43,6 +44,7 @@ class LiveFpsMeter:
         self.requested_fps = None
         self.source_times = deque()
         self.jpeg_times = deque()
+        self.nvr_timestamp_samples = deque()
         self.source_count = 0
         self.jpeg_count = 0
         self.last_source_timestamp = None
@@ -54,6 +56,7 @@ class LiveFpsMeter:
             self.requested_fps = requested_fps
             self.source_times.clear()
             self.jpeg_times.clear()
+            self.nvr_timestamp_samples.clear()
             self.source_count = 0
             self.jpeg_count = 0
             self.last_source_timestamp = None
@@ -63,7 +66,9 @@ class LiveFpsMeter:
         with self.lock:
             if self.started is None:
                 return
-            self.source_times.append(time.monotonic())
+            now = time.monotonic()
+            self.source_times.append(now)
+            self.nvr_timestamp_samples.append((now, timestamp_ms))
             self.source_count += 1
             if self.last_source_timestamp == timestamp_ms:
                 self.repeat_timestamp_count += 1
@@ -91,12 +96,35 @@ class LiveFpsMeter:
                     "source_fps": None, "jpeg_fps": None,
                     "source_frames": 0, "jpeg_frames": 0,
                     "repeated_source_timestamps": 0,
+                    "nvr_timestamp_gap_ms": None,
+                    "nvr_timestamp_fps": None,
+                    "nvr_timestamp_samples": 0,
+                    "nvr_timestamp_repeats_window": 0,
+                    "nvr_timestamp_backwards_window": 0,
                 }
             now = time.monotonic()
             threshold = now - self.WINDOW_SECONDS
             for events in (self.source_times, self.jpeg_times):
                 while events and events[0] < threshold:
                     events.popleft()
+            while (self.nvr_timestamp_samples
+                   and self.nvr_timestamp_samples[0][0] < threshold):
+                self.nvr_timestamp_samples.popleft()
+            # Do not infer a source rate from the shortened startup window
+            # or from invalid / nonmonotonic timestamp sequences.
+            raw = [stamp for _, stamp in self.nvr_timestamp_samples]
+            deltas = [b - a for a, b in zip(raw, raw[1:])]
+            repeats = sum(delta == 0 for delta in deltas)
+            backwards = sum(delta < 0 for delta in deltas)
+            positive = [delta for delta in deltas if delta > 0]
+            # The NVR header calls these milliseconds. Display the raw
+            # observed step as well as an inferred source-timestamp cadence.
+            if len(positive) >= 8 and backwards == 0:
+                timestamp_gap = round(median(positive), 1)
+                timestamp_fps = round(1000 * len(positive) / sum(positive), 1)
+            else:
+                timestamp_gap = None
+                timestamp_fps = None
             elapsed = min(now - self.started, self.WINDOW_SECONDS)
 
             def rate(events):
@@ -109,6 +137,11 @@ class LiveFpsMeter:
                 "source_frames": self.source_count,
                 "jpeg_frames": self.jpeg_count,
                 "repeated_source_timestamps": self.repeat_timestamp_count,
+                "nvr_timestamp_gap_ms": timestamp_gap,
+                "nvr_timestamp_fps": timestamp_fps,
+                "nvr_timestamp_samples": len(raw),
+                "nvr_timestamp_repeats_window": repeats,
+                "nvr_timestamp_backwards_window": backwards,
             }
 
 
