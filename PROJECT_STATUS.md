@@ -136,7 +136,7 @@ Develop an **independent Linux CCTV server** with a **modern browser-based full 
 
 ## Paused frame stepping (22 November 2026)
 
-- The Chrome player has Previous frame and Next frame controls for buffered, paused playback. They use the last presented frame timestamp and the current preview’s 15 fps frame grid. A JavaScript test verified the requested targets round-trip three frames forward and three back and that the controls respect playback state and the buffered range. Exact presented-frame behaviour still needs a live Chrome check.
+- The Chrome player has Previous frame and Next frame controls for buffered, paused playback. They use the last presented frame timestamp and the current preview’s 15 fps frame grid. A JavaScript test verified the requested targets round-trip three frames forward and three back and that the controls respect playback state and the buffered range. Tim confirmed both paused frame controls work in live Chrome after the clip has loaded. Exact frame identity after a three-forward, three-back round trip was not separately reported.
 
 ## COMPLETED — REMAINING — NEXT ACTION
 
@@ -144,7 +144,7 @@ Develop an **independent Linux CCTV server** with a **modern browser-based full 
 
 **REMAINING:** Verify **interactive Linux shell** and runtime mounts when hardware access is next needed; establish on-demand SSH/Telnet only if safe without persistent changes; observe external cloud egress passively; develop continuous local stream receiver, full playback/download, complete browser interface and HA integration. Optional future task: identify feasible LUI/HDMI customisation.
 
-**NEXT ACTION:** Verify paused frame stepping in Chrome by stepping forward and then back to the same displayed frame.
+**NEXT ACTION:** Confirm exact frame identity on a forward/backward round trip, then move on to synchronised two-camera playback.
 
 ## Documentation and security rules
 
