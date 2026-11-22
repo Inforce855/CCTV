@@ -41,9 +41,27 @@ def jpeg_images(source):
                 break
 
 
+def preview_command(codec, source_fps, output_fps):
+    """Build the MJPEG encoder command for one SD camera preview."""
+    if codec not in ("H264", "H265") or not 1 <= source_fps <= 120:
+        raise ValueError("Unsupported source codec or frame rate")
+    if output_fps not in (5, 10, 15):
+        raise ValueError("Preview fps must be 5, 10 or 15")
+    format_name = "hevc" if codec == "H265" else "h264"
+    return [
+        "ffmpeg", "-hide_banner", "-nostdin", "-loglevel", "error",
+        "-f", format_name, "-framerate", str(source_fps),
+        "-probesize", "32768", "-analyzeduration", "1", "-i", "pipe:0",
+        "-an", "-vf", f"fps={output_fps}", "-c:v", "mjpeg", "-q:v", "6",
+        "-f", "image2pipe", "pipe:1",
+    ]
+
+
 @contextmanager
-def mjpeg_preview(url, username, password, channel=0, stream=1):
-    """Yield JPEGs as they arrive. Closing this context stops the KP2P stream."""
+def mjpeg_preview(url, username, password, channel=0, stream=1, fps=5):
+    """Yield JPEGs at the chosen preview fps; closing stops the KP2P stream."""
+    if fps not in (5, 10, 15):
+        raise ValueError("Unsupported browser preview frame rate")
     with receive_live(url, username, password, channel, stream) as frames:
         first = None
         first_deadline = time.monotonic() + 20
@@ -55,14 +73,11 @@ def mjpeg_preview(url, username, password, channel=0, stream=1):
                 raise TimeoutError("No live keyframe within 20 seconds")
         if first is None or first.codec not in ("H264", "H265"):
             raise ValueError("No supported video keyframe from NVR")
-        format_name = "hevc" if first.codec == "H265" else "h264"
-        process = subprocess.Popen([
-            "ffmpeg", "-hide_banner", "-nostdin", "-loglevel", "error",
-            "-f", format_name, "-framerate", str(first.fps),
-            "-probesize", "32768", "-analyzeduration", "1", "-i", "pipe:0",
-            "-an", "-vf", "fps=5", "-c:v", "mjpeg", "-q:v", "6",
-            "-f", "image2pipe", "pipe:1",
-        ], stdin=subprocess.PIPE, stdout=subprocess.PIPE, stderr=subprocess.DEVNULL, bufsize=0)
+        process = subprocess.Popen(
+            preview_command(first.codec, first.fps, fps),
+            stdin=subprocess.PIPE, stdout=subprocess.PIPE,
+            stderr=subprocess.DEVNULL, bufsize=0
+        )
         stop = Event()
         errors = []
 
