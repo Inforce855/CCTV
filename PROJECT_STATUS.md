@@ -132,7 +132,7 @@ Develop an **independent Linux CCTV server** with a **modern browser-based full 
 
 ## Replay cache (22 November 2026)
 
-- The loopback gateway caches up to four complete browser clips in memory, up to 32 MiB each. Cache keys include camera, requested start, duration and recording type. An HTTP fixture test verified that identical requests bypass the replay source, partial captures are excluded and older entries are evicted. The first live repeat appeared to reload. The cache now admits clean captures ending within 100 ms of the requested boundary, even when the recorder sends no frame at or beyond the boundary, and logs hits, misses and admission failures. A fixture verified the near-boundary case and exclusion of an early truncation. Live retest remains pending.
+- The loopback gateway caches up to four complete browser clips in memory, up to 32 MiB each. Cache keys include camera, requested start, duration and recording type. An HTTP fixture test verified that identical requests bypass the replay source, partial captures are excluded and older entries are evicted. The first live repeat appeared to reload. The cache now admits clean captures ending within 100 ms of the requested boundary, even when the recorder sends no frame at or beyond the boundary, and logs hits, misses and admission failures. A fixture verified the near-boundary case and exclusion of an early truncation. Live Nobara retest passed: the 29-second Camera 4 request (plus lead-in) produced a 28,562,137-byte browser clip. After one miss and cache admission, six identical repeats hit the cache. Tim reported no noticeable wait. The clip exceeded the old 8 MiB limit.
 
 ## COMPLETED — REMAINING — NEXT ACTION
 
@@ -140,7 +140,7 @@ Develop an **independent Linux CCTV server** with a **modern browser-based full 
 
 **REMAINING:** Verify **interactive Linux shell** and runtime mounts when hardware access is next needed; establish on-demand SSH/Telnet only if safe without persistent changes; observe external cloud egress passively; develop continuous local stream receiver, full playback/download, complete browser interface and HA integration. Optional future task: identify feasible LUI/HDMI customisation.
 
-**NEXT ACTION:** Load the same Camera 4 request twice in Chrome and verify a cache hit on the second request. Then add paused frame stepping.
+**NEXT ACTION:** Add paused frame stepping and verify that stepping forward and then back returns to the same displayed frame.
 
 ## Documentation and security rules
 
