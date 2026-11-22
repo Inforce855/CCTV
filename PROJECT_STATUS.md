@@ -243,13 +243,21 @@ Develop an **independent Linux CCTV server** with a **modern browser-based full 
 - **Tests:** Four new cases in `tests/test_live_fps_meter.py` cover 10 fps timestamps, approximately 15 fps timestamps despite ten wall-clock input frames/s, duplicated stamps and a backwards reset. Browser JavaScript passed syntax checking. Offline Python tests could **not** be run in this environment due to lack of direct repository/network access; user's test run and physical-NVR readings remain outstanding.
 - **Next action:** Pull changes and restart the working gateway. View Camera 1 at preview 15 fps for at least ten seconds, read `In / Out / TS` in the heading, then optionally compare another camera. Do not alter the working 4-camera receiver or FFmpeg time base until those native timestamp measurements are collected.
 
+## All four NVR SD timestamps confirmed at 100.0 ms; targeted FFmpeg timing correction committed (22 November 2026)
+
+- **User-confirmed:** All four cameras immediately report native `TS 100.0ms` in the new FPS/TS meter. Earlier tests with 1, 2, 3 or 4 active cameras showed `In≈10.0 fps`; requested preview 5/10/15 produced `Out≈3.2/6.6/10.0 fps`. Together these confirm **ten timestamped SD video frames per second**, despite the NVR video header advertising 15 fps. This is *not* an issue that appears only with four simultaneous feeds.
+- **Confirmed code mechanism:** FFmpeg raw-input `-framerate 15` was derived directly from that advertised header and therefore interpreted each ten source frames as two-thirds of a second. This explains why measured JPEG output was roughly 2/3 of the selected rate, without proving why the camera stream advertises 15 instead of 10.
+- **Smallest targeted correction committed:** In `live_preview.py`, new `effective_live_input_fps()` returns **10** only for the four-camera setup's measured SD profile (stream=1, advertised=15, resolution=800×448), and otherwise retains the advertised rate. FFmpeg input `-framerate` uses that effective value; the existing 5/10/15 output filter, KP2P video receiver, preview locks, replay/cache and all NVR settings are unchanged. Tests added in `tests/test_live_preview_fps.py` for the matched profile, HD and other profile preservation.
+- **Predicted — still needs physical NVR verification:** selected preview 5/10/15 fps should yield **In≈10 each, Out≈5/10/15**. At 15, output will need to duplicate video pictures because the source is providing only ten timestamped frames per second. The about-two-second delay relative to HA is a separate open question. The exact amended Python tests and hardware output rates have **not yet been executed or confirmed** from this environment.
+- **Next action:** Pull and restart the existing gateway; run `tests/test_live_preview_fps.py`, then observe the In/Out/TS values at all three selections (test at least one camera, then four). Verify 15 fps output doesn't unexpectedly increase lag/CPU. Preserve rollback possibility via prior Git history and avoid broader streaming changes until those results return.
+
 ## COMPLETED — REMAINING — NEXT ACTION
 
 **COMPLETED:** Original discovery and HTTP snapshot path; local NVR HTTP/WebSocket/recording-search tests; playable HEVC sample reconstruction; firmware XOR decoding/extraction; static cloud, startup, hidden maintenance and LUI audits; **physical UART boot capture and interactive U-Boot access**; NVR restored to operation; independent-server/browser/HA project architecture agreed.
 
 **REMAINING:** Verify **interactive Linux shell** and runtime mounts when hardware access is next needed; establish on-demand SSH/Telnet only if safe without persistent changes; observe external cloud egress passively; develop continuous local stream receiver, full playback/download, complete browser interface and HA integration. Optional future task: identify feasible LUI/HDMI customisation.
 
-**NEXT ACTION:** Verify new per-camera NVR timestamp **TS** spacing against measured In/Out at 15 fps (ideally after ten seconds of steady running), then apply only the FFmpeg input timing correction justified by the results. Preserve all four working live streams and the recording player/cache.
+**NEXT ACTION:** Test the committed targeted FFmpeg input-timebase correction on the physical NVR. At output selections 5/10/15 fps verify In≈10 and Out≈5/10/15 while TS stays 100 ms. Then assess delay/CPU separately; preserve the four-camera live view and recording replay/cache.
 
 ## Documentation and security rules
 
