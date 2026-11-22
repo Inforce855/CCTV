@@ -351,13 +351,19 @@ Develop an **independent Linux CCTV server** with a **modern browser-based full 
 - **One-variable next test:** `ffprobe -rtsp_transport tcp -allowed_media_types video` against the same root path, preserving the earlier read-only metadata selection. FFmpeg documents `allowed_media_types` as the way to accept only video in an RTSP session: https://ffmpeg.org/ffprobe-all.html. If video-only succeeds, suspect audio-track setup; if unchanged EOF, next identify RTSP `SETUP` target/response, with credential-bearing messages filtered. Avoid changing camera settings, NVR, gateway, RTMP or working recording replay.
 - **Security:** Any password or authentication material remains private; do not publish URLs with nonempty credentials or raw `Authorization` headers.
 
+## Direct RTSP video-only test confirms same post-SDP EOF (22 November 2026)
+
+- **User hardware test:** `ffprobe -rtsp_transport tcp -allowed_media_types video` (same root URI and empty-password URL, verbose) connected and parsed the same H.265/PCMA SDP, but again returned **`Failed reading RTSP data: End of file`** and `Invalid data found when processing input` without stream data. This is identical to previous TCP and UDP tests that included audio. **Audio-first SDP by itself is not demonstrated as the cause; suppressing audio did not fix it.**
+- **Confirmed boundary:** RTSP listener, Digest challenge and authenticated SDP work. TCP, UDP and video-only attempts all fail after SDP and before receiving frames. It is still only a **hypothesis** that a specific `SETUP` request is where the server disconnects; no request/response transcript has been inspected.
+- **Next targeted diagnostic:** Capture `ffprobe -loglevel trace` on the **same failing TCP video-only request**, but pipe it through a strict allowlist (RTSP request start lines, RTSP status lines, `CSeq`, `Transport`, and EOF errors) so that `Authorization` and other Digest material are **never printed or published**. This should identify whether a `SETUP` is issued, which control URL it targets and whether the server responds. Avoid writing raw trace logs, modifying camera/NVR settings, guessing URLs, installing firmware or altering proven live and replay code.
+
 ## COMPLETED — REMAINING — NEXT ACTION
 
 **COMPLETED:** Original discovery and HTTP snapshot path; local NVR HTTP/WebSocket/recording-search tests; playable HEVC sample reconstruction; firmware XOR decoding/extraction; static cloud, startup, hidden maintenance and LUI audits; **physical UART boot capture and interactive U-Boot access**; NVR restored to operation; independent-server/browser/HA project architecture agreed.
 
 **REMAINING:** Verify **interactive Linux shell** and runtime mounts when hardware access is next needed; establish on-demand SSH/Telnet only if safe without persistent changes; observe external cloud egress passively; develop continuous local stream receiver, full playback/download, complete browser interface and HA integration. Optional future task: identify feasible LUI/HDMI customisation.
 
-**NEXT ACTION:** Both TCP and UDP FFprobe authenticated RTSP connections reach valid SDP, then EOF before receiving video. Try one read-only video-only FFprobe test with `-allowed_media_types video` to isolate whether the SDP's audio-first track causes SETUP failure. If still EOF, inspect sanitised RTSP SETUP negotiation; preserve NVR four-camera live, playback/cache and HA snapshots.
+**NEXT ACTION:** Camera 1 FFprobe with TCP+video-only also closes after valid SDP, so the proposed audio-track explanation is not supported by the test. Collect a **strictly filtered RTSP trace** showing method lines, statuses, transport and any EOF; identify the failing media SETUP/request before changing code or device settings. Preserve verified four-camera KP2P viewer, NVR playback/cache and HA snapshots.
 
 ## Documentation and security rules
 
