@@ -45,8 +45,7 @@ def effective_live_input_fps(advertised_fps, stream, width, height):
     """Correct the verified Hiseeu SD input time base.
 
     On this NVR all four 800x448 SD feeds advertise 15 fps, but their
-    frame headers advance by 100 ms (10 real video frames/s). Using the
-    advertised value compresses FFmpeg timestamps by a factor of 2/3.
+    frame headers advance by 100 ms (10 real video frames/s).
     Leave unknown profiles unchanged rather than assuming they run at 10.
     """
     if stream == 1 and advertised_fps == 15 and (width, height) == (800, 448):
@@ -54,18 +53,25 @@ def effective_live_input_fps(advertised_fps, stream, width, height):
     return advertised_fps
 
 
-def preview_command(codec, source_fps, output_fps):
-    """Build the MJPEG encoder command for one SD camera preview."""
+def preview_command(codec, source_fps, output_fps, *, retime_input=False):
+    """Build MJPEG conversion; retime only when native timestamps prove needed.
+
+    Raw HEVC/H.264 may carry its own picture timing. FFmpeg's demuxer
+    -framerate option does not necessarily replace decoded frame PTS;
+    explicitly set decoded PTS for the verified Hiseeu 10 fps SD profile.
+    """
     if codec not in ("H264", "H265") or not 1 <= source_fps <= 120:
         raise ValueError("Unsupported source codec or frame rate")
     if output_fps not in (5, 10, 15):
         raise ValueError("Preview fps must be 5, 10 or 15")
     format_name = "hevc" if codec == "H265" else "h264"
+    video_filter = (f"setpts=N/({source_fps}*TB),fps={output_fps}"
+                    if retime_input else f"fps={output_fps}")
     return [
         "ffmpeg", "-hide_banner", "-nostdin", "-loglevel", "error",
         "-f", format_name, "-framerate", str(source_fps),
         "-probesize", "32768", "-analyzeduration", "1", "-i", "pipe:0",
-        "-an", "-vf", f"fps={output_fps}", "-c:v", "mjpeg", "-q:v", "6",
+        "-an", "-vf", video_filter, "-c:v", "mjpeg", "-q:v", "6",
         "-f", "image2pipe", "pipe:1",
     ]
 
@@ -91,7 +97,8 @@ def mjpeg_preview(url, username, password, channel=0, stream=1, fps=5,
             first.fps, stream, first.width, first.height
         )
         process = subprocess.Popen(
-            preview_command(first.codec, source_fps, fps),
+            preview_command(first.codec, source_fps, fps,
+                            retime_input=(source_fps != first.fps)),
             stdin=subprocess.PIPE, stdout=subprocess.PIPE,
             stderr=subprocess.DEVNULL, bufsize=0
         )
