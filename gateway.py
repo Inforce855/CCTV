@@ -87,6 +87,7 @@ class LiveFpsMeter:
             self.requested_fps = None
             self.source_times.clear()
             self.jpeg_times.clear()
+            self.nvr_timestamp_samples.clear()
 
     def snapshot(self):
         with self.lock:
