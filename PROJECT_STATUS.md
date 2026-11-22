@@ -178,13 +178,21 @@ Develop an **independent Linux CCTV server** with a **modern browser-based full 
 - **Not yet verified on hardware:** Cameras 2–4 actually delivering video; concurrent four-session operation; NVR capacity, CPU/memory/latency, stop/restart behaviour. The new frontend/backend have been source-reviewed but not run against the user's current workstation in this chat. No claim of four-stream success yet.
 - **Agreed follow-up:** Test Cameras 2–4 SD individually, then use **Start all SD** to observe four simultaneous feeds at the existing 5 fps. If stable, compare 10 and 15 fps in a later change, measuring decoding load and visible motion. Do not change the cameras' configured recording bitrates or exposure settings based only on the night-time 5 fps preview.
 
+## Four simultaneous SD live pictures verified (22 November 2026, 17:16 GMT)
+
+- **Physical hardware confirmation:** Tim reported **all four cameras working** and supplied a Chrome screenshot of `http://127.0.0.1:8082/live` at approximately 17:16, visibly showing Camera 1, Camera 2, Camera 3 and Camera 4 SD pictures at once. Each tile displays `Stop live`, all four show `NVR connected`, and the 2×2 layout fits within the browser viewport. The screenshot shows on-camera time overlays close together, but **does not establish exact stream synchronisation or latency**.
+- **Validated scope:** Four concurrent authenticated native KP2P camera streams can produce browser MJPEG video simultaneously on the Nobara workstation. Camera 1 was additionally verified earlier to show a moving car and a passing person. Tim confirms the four-camera setup works; continuous motion on each of Cameras 2–4, extended stability, measured effective fps, resource utilisation and clean stop/restart are not independently quantified.
+- **Current preview:** `live_preview.py` outputs **5 fps per camera**, with NVR SD profiles configured for **15 fps, 800 × 448**. Night-time ghosting may result from exposure/noise reduction and is distinct from low preview frame rate. No NVR image/exposure/recording settings altered.
+- **Preservation:** No application code was modified to record this successful hardware result. The verified replay player/cache and frame stepping are unchanged.
+- **Next action:** Test raising the browser preview output to **10 fps**, then **15 fps**, under four-camera load, observing CPU, memory, visible motion, latency and picture quality. Keep results separate from assumptions; confirm settings only after hardware test.
+
 ## COMPLETED — REMAINING — NEXT ACTION
 
 **COMPLETED:** Original discovery and HTTP snapshot path; local NVR HTTP/WebSocket/recording-search tests; playable HEVC sample reconstruction; firmware XOR decoding/extraction; static cloud, startup, hidden maintenance and LUI audits; **physical UART boot capture and interactive U-Boot access**; NVR restored to operation; independent-server/browser/HA project architecture agreed.
 
 **REMAINING:** Verify **interactive Linux shell** and runtime mounts when hardware access is next needed; establish on-demand SSH/Telnet only if safe without persistent changes; observe external cloud egress passively; develop continuous local stream receiver, full playback/download, complete browser interface and HA integration. Optional future task: identify feasible LUI/HDMI customisation.
 
-**NEXT ACTION:** Pull and restart the existing gateway, verify Cameras 2, 3 and 4 SD individually, then verify four simultaneous live previews at 5 fps. Stop/restart behaviour, resource load, latency, and future 10/15 fps experiments remain to be evaluated. Preserve verified replay and single-camera stepping.
+**NEXT ACTION:** Four-camera SD display is confirmed. Compare 10 fps and then 15 fps browser preview under simultaneous load, measuring CPU/memory, effective cadence, latency and clarity; assess clean Stop/restart separately. Keep the working replay, cache and frame stepping unchanged.
 
 ## Documentation and security rules
 
