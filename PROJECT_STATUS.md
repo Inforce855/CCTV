@@ -378,13 +378,20 @@ Develop an **independent Linux CCTV server** with a **modern browser-based full 
 - **Important uncertainty:** FFprobe's `15 fps` and `10 tbr` are inconsistent indicators of timing, and the completed FFprobe metadata test does **not** establish 15 distinct frames/second or end-to-end delay. The earlier NVR KP2P SD feed measured 10 incoming timestamped fps; the previously reviewed recording MP4 has a 15 fps timeline. Direct stream real-time frame cadence and latency are **not yet hardware-verified**.
 - **Hybrid route now feasible to evaluate:** Camera-direct RTSP for live, retain existing NVR recording search/playback/cache, and preserve verified KP2P four-camera SD live as rollback. Do not modify current gateway, camera configuration, RTMP or NVR until direct-source stability, timing and CPU have been compared and the user approves an implementation change. Keep camera addresses and authentication tokens out of public repository.
 
+## VLC successfully plays direct Camera 1 RTSP video (22 November 2026)
+
+- **User hardware verification:** With the exact previously probed alternate RTSP media path `/ch0_0.264`, **VLC 3.0.24 actually connected and displayed moving camera video**. This verifies `SETUP`/`PLAY`, receipt of media packets and usable H.265 decoding from the camera, independently of both the NVR KP2P live path and Home Assistant JPEG snapshots. Do not treat the earlier `/` path failure as an outstanding obstacle to video access; the correct path is established.
+- **Observed VLC console details:** Two `main decoder error: buffer deadlock prevented` messages and a VA-API hardware-decoder initialization using the local Mesa Gallium AMD driver (`radeonsi`, Strix Halo) appeared while the user reported visible video. The messages do **not** establish loss of playback or a confirmed driver defect; picture stuttering, actual frame rate, latency and long-term stability have not been measured yet.
+- **Known stream format from working FFprobe:** 1920×1080 H.265 Main; FFprobe displayed `15 fps` alongside `10 tbr` (`r_frame_rate=10/1`). This ambiguity must be resolved by **counting received decoded frames over elapsed wall time**, not by either advertised number alone.
+- **Next:** A single read-only bounded FFmpeg decode-count test of the working path, then compare the visible overlay clock/scene latency against HA direct snapshots and the NVR SD viewer. Continue to preserve existing gateway KP2P live fallback, all NVR playback/replay cache, existing HA integration and camera/RTMP settings. No application changes have been made to enable this direct VLC playback.
+
 ## COMPLETED — REMAINING — NEXT ACTION
 
 **COMPLETED:** Original discovery and HTTP snapshot path; local NVR HTTP/WebSocket/recording-search tests; playable HEVC sample reconstruction; firmware XOR decoding/extraction; static cloud, startup, hidden maintenance and LUI audits; **physical UART boot capture and interactive U-Boot access**; NVR restored to operation; independent-server/browser/HA project architecture agreed.
 
 **REMAINING:** Verify **interactive Linux shell** and runtime mounts when hardware access is next needed; establish on-demand SSH/Telnet only if safe without persistent changes; observe external cloud egress passively; develop continuous local stream receiver, full playback/download, complete browser interface and HA integration. Optional future task: identify feasible LUI/HDMI customisation.
 
-**NEXT ACTION:** Camera 1's alternate RTSP media URL `/ch0_0.264` **works** and reports 1920×1080 HEVC (15 fps display but `r_frame_rate=10/1`). Measure actual delivered live frame cadence and observe direct live latency before integrating camera-direct RTSP into the existing gateway. Keep NVR replay/cache and working NVR KP2P live fallback unchanged.
+**NEXT ACTION:** Direct Camera 1 RTSP playback through VLC at `/ch0_0.264` is now **physically verified**. Measure true decoded-frame arrival rate over elapsed wall time and compare direct RTSP latency to HA snapshots and the NVR KP2P SD viewer before deciding whether to route the existing gateway live feed to direct cameras. Preserve NVR playback/cache and KP2P fallback.
 
 ## Documentation and security rules
 
