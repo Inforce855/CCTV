@@ -1,0 +1,99 @@
+<!doctype html>
+<html lang="en-GB">
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>CCTV recording playback</title>
+<style>
+body {font: 1rem system-ui; max-width: 68rem; margin: 2rem auto; padding: 0 1rem; background: #161b23; color: #f1f5fa}
+form, nav {display:flex; flex-wrap:wrap; gap:.75rem; align-items:end}
+label {display:grid; gap:.25rem}
+input, select, button {font:inherit; padding:.45rem; border-radius:.35rem}
+video {display:block; width:100%; max-height:70vh; margin:1rem 0; background:#080b10}
+</style>
+<h1>Recording playback</h1>
+<form>
+<label>Camera <input name="channel" type="number" min="1" max="8" value="2" required></label>
+<label>Start time <input name="start" type="datetime-local" step="1" required></label>
+<label>Seconds <input name="seconds" type="number" min="1" max="30" value="10" required></label>
+<label>Recording type <select name="type"><option value="1">Timed</option><option value="2">Motion</option><option value="4">Alarm</option><option value="8">Manual</option></select></label>
+<button>Load recording</button>
+</form>
+<p role="status">Video-only preview</p>
+<video controls playsinline></video>
+<nav aria-label="Buffered playback">
+<button id="back">−5 seconds</button><button id="ahead">+5 seconds</button>
+</nav>
+<script>
+const video = document.querySelector('video');
+const status = document.querySelector('[role=status]');
+const form = document.querySelector('form');
+const codec = 'video/mp4; codecs="avc1.42C01F"';
+let controller, objectURL;
+
+function append(buffer, data) {
+  return new Promise((resolve, reject) => {
+    const done = () => { buffer.removeEventListener('error', failed); resolve(); };
+    const failed = () => { buffer.removeEventListener('updateend', done); reject(new Error('Chrome could not decode the preview')); };
+    buffer.addEventListener('updateend', done, {once:true});
+    buffer.addEventListener('error', failed, {once:true});
+    buffer.appendBuffer(data);
+  });
+}
+
+form.addEventListener('submit', async event => {
+  event.preventDefault();
+  if (!window.MediaSource || !MediaSource.isTypeSupported(codec)) {
+    status.textContent = 'This browser does not support the H.264 playback preview.';
+    return;
+  }
+  controller?.abort();
+  if (objectURL) URL.revokeObjectURL(objectURL);
+  const request = controller = new AbortController();
+  const params = new URLSearchParams(new FormData(form));
+  const requested = new Date(params.get('start')).getTime();
+  params.set('start', String(Math.floor(requested / 1000)));
+  const source = new MediaSource();
+  const open = new Promise(resolve => source.addEventListener('sourceopen', resolve, {once:true}));
+  objectURL = URL.createObjectURL(source);
+  video.src = objectURL;
+  status.textContent = 'Waiting for the NVR…';
+  try {
+    const response = await fetch('/api/playback?' + params, {signal:request.signal});
+    if (!response.ok) throw new Error((await response.json()).error);
+    const lead = Math.max(0, (requested - Number(response.headers.get('X-First-Frame-MS'))) / 1000);
+    await open;
+    const buffer = source.addSourceBuffer(codec);
+    const reader = response.body.getReader();
+    let started = false;
+    while (true) {
+      const {value, done} = await reader.read();
+      if (done) break;
+      await append(buffer, value);
+      if (!started && video.buffered.length && video.buffered.end(0) > lead) {
+        video.currentTime = Math.max(lead, video.buffered.start(0));
+        started = true;
+        status.textContent = 'Playing while footage arrives · video-only preview';
+        video.play().catch(() => {});
+      }
+    }
+    if (source.readyState === 'open') source.endOfStream();
+    if (request === controller) status.textContent = started ? 'Capture complete · video-only preview' : 'Capture ended before the selected time.';
+  } catch (error) {
+    if (request === controller && !request.signal.aborted) status.textContent = error.message;
+    request.abort();
+  }
+});
+
+function jog(seconds) {
+  for (let i = 0; i < video.buffered.length; i++) {
+    const start = video.buffered.start(i), end = video.buffered.end(i);
+    if (video.currentTime >= start && video.currentTime <= end) {
+      video.currentTime = Math.max(start, Math.min(end - 0.01, video.currentTime + seconds));
+      break;
+    }
+  }
+}
+document.querySelector('#back').onclick = () => jog(-5);
+document.querySelector('#ahead').onclick = () => jog(5);
+</script>
+</html>
