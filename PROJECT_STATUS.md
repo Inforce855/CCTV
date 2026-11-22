@@ -130,13 +130,17 @@ Develop an **independent Linux CCTV server** with a **modern browser-based full 
 
 - The initial automatic seek produced a visible jump in live Chrome playback. The player starts from the first buffered frame and labels the measured lead-in. Tim confirmed the updated player worked in live Chrome on Nobara.
 
+## Replay cache (22 November 2026)
+
+- The loopback gateway caches up to four complete browser clips in memory, up to 8 MiB each. Cache keys include camera, requested start, duration and recording type. An HTTP fixture test verified that identical requests bypass the replay source, partial captures are excluded and older entries are evicted. Live Camera 4 cache verification is pending.
+
 ## COMPLETED — REMAINING — NEXT ACTION
 
 **COMPLETED:** Original discovery and HTTP snapshot path; local NVR HTTP/WebSocket/recording-search tests; playable HEVC sample reconstruction; firmware XOR decoding/extraction; static cloud, startup, hidden maintenance and LUI audits; **physical UART boot capture and interactive U-Boot access**; NVR restored to operation; independent-server/browser/HA project architecture agreed.
 
 **REMAINING:** Verify **interactive Linux shell** and runtime mounts when hardware access is next needed; establish on-demand SSH/Telnet only if safe without persistent changes; observe external cloud egress passively; develop continuous local stream receiver, full playback/download, complete browser interface and HA integration. Optional future task: identify feasible LUI/HDMI customisation.
 
-**NEXT ACTION:** Use the verified timestamps to suppress lead-in frames from presentation while retaining them for decoding. Measure seek latency across several targets and reuse cached footage for nearby seeks.
+**NEXT ACTION:** Load the same Camera 4 request twice in Chrome and verify a cache hit on the second request. Then add paused frame stepping.
 
 ## Documentation and security rules
 
