@@ -22,6 +22,8 @@ ARQ_ACCEPT = bytes.fromhex("96d5390d12fcbe8f4790d932ccd849f3")
 IOT_MAGIC = 0xDECDBCAB
 APP_MAGIC = 0x4B503250
 MAX_OUTPUT = 64 * 1024 * 1024
+ALAW_RATE = 8000
+MAX_AUDIO_BYTES = ALAW_RATE * 120
 
 
 def transport(command, session, payload):
@@ -104,7 +106,7 @@ def expect_reply(socket, session, stage, transport_commands, app_command=None):
     raise TimeoutError(f"{stage}: no expected reply (received {', '.join(sorted(seen)) or 'no protocol commands'})")
 
 
-def receive_clip(url, username, password, channel, start, end, kinds, output, timestamps=None):
+def receive_clip(url, username, password, channel, start, end, kinds, output, timestamps=None, audio=None):
     session = secrets.randbelow(10_000) + 1
     with connect(url, open_timeout=8, close_timeout=2, ping_interval=None,
                  compression=None, max_size=2 * 1024 * 1024, proxy=None) as socket:
@@ -123,10 +125,18 @@ def receive_clip(url, username, password, channel, start, end, kinds, output, ti
         before_start = in_range = keyframes = 0
         stop_reason = "deadline"
         capture_started = time.monotonic()
+        audio_bytes = 0
         try:
             deadline = capture_started + (end - start) + 45
             for frame in frames(recording_frames(socket, session, deadline), allow_incomplete_tail=True):
-                if frame.channel != channel or frame.codec != "H265":
+                if frame.channel != channel:
+                    continue
+                if audio is not None and frame.codec == "G711A" and frame.frame_type == 0:
+                    audio_bytes += len(frame.data)
+                    if audio_bytes > MAX_AUDIO_BYTES:
+                        raise ValueError("Playback exceeded the audio size limit")
+                    audio.append(frame)
+                if frame.codec != "H265":
                     continue
                 if frame.timestamp_ms >= end * 1000:
                     stop_reason = "end_timestamp"
@@ -174,7 +184,22 @@ def packet_expression(values, offset=0):
     return f"if(lt(N\\,{offset + mid})\\,{lower}\\,{upper})"
 
 
-def write_mp4(source, timestamps, destination):
+def aligned_alaw(audio, first_ms, duration_ms):
+    # The verified NVR format is mono G.711 A-law at 8 kHz.
+    end = duration_ms * (ALAW_RATE // 1000)
+    track = bytearray()
+    for frame in sorted(audio, key=lambda item: item.timestamp_ms):
+        start = (frame.timestamp_ms - first_ms) * (ALAW_RATE // 1000)
+        position = max(start, len(track))
+        data = frame.data[position - start:position - start + max(0, end - position)]
+        if not data:
+            continue
+        track.extend(b"\xd5" * (position - len(track)))
+        track.extend(data)
+    return track
+
+
+def write_mp4(source, timestamps, destination, audio=()):
     if not 2 <= len(timestamps) <= 1500:
         raise ValueError("Timestamped MP4 requires between 2 and 1,500 frames")
     offsets = [timestamp - timestamps[0] for timestamp in timestamps]
@@ -187,14 +212,25 @@ def write_mp4(source, timestamps, destination):
         f"duration=({packet_expression(durations)})/(1000*TB)"
     )
     source.seek(0)
-    with tempfile.NamedTemporaryFile(suffix=".mp4", dir=destination.parent) as staged:
+    pcm = aligned_alaw(audio, timestamps[0], offsets[-1] + durations[-1])
+    with tempfile.NamedTemporaryFile(suffix=".mp4", dir=destination.parent) as staged, \
+            tempfile.NamedTemporaryFile(suffix=".alaw") as audio_source:
+        audio_args = []
+        if pcm:
+            audio_source.write(pcm)
+            audio_source.flush()
+            audio_args = [
+                "-f", "alaw", "-ar", str(ALAW_RATE), "-ac", "1", "-i", audio_source.name,
+                "-map", "0:v:0", "-map", "1:a:0", "-c:a", "aac",
+            ]
         subprocess.run([
             "ffmpeg", "-nostdin", "-v", "error", "-xerror", "-y",
-            "-f", "hevc", "-i", "pipe:0", "-c:v", "copy", "-bsf:v", timing,
+            "-f", "hevc", "-i", "pipe:0", *audio_args, "-c:v", "copy", "-bsf:v", timing,
             "-tag:v", "hvc1", "-video_track_timescale", "1000",
             "-movflags", "+faststart", staged.name,
         ], stdin=source, check=True)
         destination.hardlink_to(staged.name)
+    return bool(pcm)
 
 
 def parse_time(value):
@@ -227,10 +263,12 @@ def main():
             if args.output.exists():
                 raise FileExistsError(args.output)
             timestamps = []
+            audio = []
             with tempfile.TemporaryFile() as output:
                 report = receive_clip(url, args.username, password, args.channel - 1,
-                                      start, start + args.seconds, args.type, output, timestamps)
-                write_mp4(output, timestamps, args.output)
+                                      start, start + args.seconds, args.type, output, timestamps, audio)
+                report["audio_in_mp4"] = write_mp4(output, timestamps, args.output, audio)
+                report["g711a_frames"] = len(audio)
             print(json.dumps(report))
             return
         with args.output.open("xb") as output:
