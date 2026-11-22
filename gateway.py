@@ -225,6 +225,19 @@ def handler(nvr, port):
                 self.reply(400, {"error": "Use the local gateway address"})
                 return
             target = urlsplit(self.path)
+            if target.path == "/live":
+                try:
+                    data = Path(__file__).with_name("live.html").read_bytes()
+                except OSError:
+                    self.reply(503, {"error": "The live-view page is missing"})
+                    return
+                self.send_response(200)
+                self.send_header("Content-Type", "text/html; charset=utf-8")
+                self.send_header("Content-Length", str(len(data)))
+                self.send_header("Cache-Control", "no-store")
+                self.end_headers()
+                self.wfile.write(data)
+                return
             if target.path == "/playback":
                 try:
                     data = Path(__file__).with_name("playback.html").read_bytes()
