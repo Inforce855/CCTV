@@ -194,6 +194,12 @@ Develop an **independent Linux CCTV server** with a **modern browser-based full 
 - **Verification:** In-chat review confirms the committed browser JavaScript compiles. `tests/test_live_preview_fps.py` contains offline tests for accepted/rejected query values and the selected FFmpeg filter, but these tests **have not been executed in the user's Nobara environment**. Do not claim 10/15 fps or live switching works until checked on the NVR.
 - **Next action:** Pull the latest GitHub branch and restart the same gateway (port 8082); first test a single camera at 10 and 15 fps, including switching while active; then test mixed rates and all four at 15 fps. Check CPU/memory, smoothness and live-view delay. Existing night-time exposure-related ghosting may remain at higher preview fps.
 
+## First 15 fps preview observation and Home Assistant comparison (22 November 2026, Sunday evening)
+
+- Tim tested the new per-camera preview rate controls after four simultaneous SD previews had worked. He is **not convinced the display is actually showing 15 distinct frames/s**, but reports very little movement around the cameras on Sunday evening, so smoothness could not be judged reliably. **Actual input/output fps remains unmeasured.** The browser FFmpeg `fps=15` filter specifies output cadence and can duplicate source frames, so its value alone cannot establish unique-frame rate.
+- Tim observes the browser CCTV live view is **about two seconds behind his Home Assistant connection**. This is a relative, informal observation, not a measured end-to-end latency or a confirmed FFmpeg/browser defect. The precise HA stream path and delay measurement method have not been verified here.
+- **Decision:** Preserve the verified four-camera live functionality and defer speculative buffering/codec changes. Next obtain an objective frame-count/cadence and repeatable latency comparison before optimising the live preview. Investigate FFmpeg/browser buffering only if supported by measurements.
+
 ## COMPLETED — REMAINING — NEXT ACTION
 
 **COMPLETED:** Original discovery and HTTP snapshot path; local NVR HTTP/WebSocket/recording-search tests; playable HEVC sample reconstruction; firmware XOR decoding/extraction; static cloud, startup, hidden maintenance and LUI audits; **physical UART boot capture and interactive U-Boot access**; NVR restored to operation; independent-server/browser/HA project architecture agreed.
