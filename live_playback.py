@@ -183,15 +183,16 @@ def write_mp4(source, timestamps, destination):
         raise ValueError("MP4 requires strictly increasing frame timestamps")
     durations.append(durations[-1])
     timing = (
-        f"setts=time_base=1/1000:ts={packet_expression(offsets)}:"
-        f"duration={packet_expression(durations)}"
+        f"setts=ts=({packet_expression(offsets)})/(1000*TB):"
+        f"duration=({packet_expression(durations)})/(1000*TB)"
     )
     source.seek(0)
     with tempfile.NamedTemporaryFile(suffix=".mp4", dir=destination.parent) as staged:
         subprocess.run([
             "ffmpeg", "-nostdin", "-v", "error", "-xerror", "-y",
             "-f", "hevc", "-i", "pipe:0", "-c:v", "copy", "-bsf:v", timing,
-            "-tag:v", "hvc1", "-movflags", "+faststart", staged.name,
+            "-tag:v", "hvc1", "-video_track_timescale", "1000",
+            "-movflags", "+faststart", staged.name,
         ], stdin=source, check=True)
         destination.hardlink_to(staged.name)
 
