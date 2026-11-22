@@ -18,6 +18,7 @@ video {display:block; width:100%; max-height:70vh; margin:1rem 0; background:#08
 <label>Recording type <select name="type"><option value="1">Timed</option><option value="2">Motion</option><option value="4">Alarm</option><option value="8">Manual</option></select></label>
 <button>Load recording</button>
 </form>
+<p id="lead-in" hidden></p>
 <p role="status">Audio and video preview</p>
 <video controls playsinline></video>
 <nav aria-label="Buffered playback">
@@ -26,6 +27,7 @@ video {display:block; width:100%; max-height:70vh; margin:1rem 0; background:#08
 <script>
 const video = document.querySelector('video');
 const status = document.querySelector('[role=status]');
+const leadNote = document.querySelector('#lead-in');
 const form = document.querySelector('form');
 const codec = 'video/mp4; codecs="avc1.42C01F,mp4a.40.2"';
 let controller, objectURL;
@@ -56,50 +58,46 @@ form.addEventListener('submit', async event => {
   const open = new Promise(resolve => source.addEventListener('sourceopen', resolve, {once:true}));
   objectURL = URL.createObjectURL(source);
   video.pause();
-  video.style.visibility = 'hidden';
+  leadNote.hidden = true;
   video.src = objectURL;
   status.textContent = 'Waiting for the NVR…';
   try {
     const response = await fetch('/api/playback?' + params, {signal:request.signal});
     if (!response.ok) throw new Error((await response.json()).error);
     const origin = response.headers.get('X-First-Frame-MS');
-    if (origin === null || !Number.isFinite(Number(origin))) throw new Error('Missing recording start timestamp.');
-    const lead = Math.max(0, (requested - Number(origin)) / 1000);
+    if (origin && Number.isFinite(Number(origin))) {
+      const lead = (requested - Number(origin)) / 1000;
+      if (lead > 0) {
+        const seconds = lead >= 1 ? Math.round(lead) : Number(lead.toFixed(3));
+        leadNote.textContent = `This clip includes about ${seconds} second${seconds === 1 ? '' : 's'} of lead-in before the requested time.`;
+        leadNote.hidden = false;
+      }
+    }
     await open;
     const buffer = source.addSourceBuffer(codec);
     const reader = response.body.getReader();
-    let seeking = false, started = false, complete = false;
-    const reveal = () => {
-      if (request !== controller || request.signal.aborted || video.seeking || video.currentTime < lead - 0.05) return;
-      started = true;
-      video.style.visibility = '';
-      status.textContent = complete ? 'Capture complete' : 'Playing while footage arrives';
-      video.play().catch(() => {
-        if (request === controller && video.paused) status.textContent = 'Press Play to watch with audio.';
-      });
-    };
-    video.addEventListener('seeked', () => { if (seeking && !started) reveal(); }, {signal:request.signal});
+    let started = false, complete = false;
     while (true) {
       const {value, done} = await reader.read();
       if (done) break;
       await append(buffer, value);
-      if (!seeking && video.readyState >= 1 && buffer.buffered.length &&
-          buffer.buffered.end(0) > lead + 0.05) {
-        seeking = true;
-        const target = Math.max(lead, buffer.buffered.start(0));
-        if (source.duration === Infinity) source.setLiveSeekableRange(buffer.buffered.start(0), buffer.buffered.end(0));
-        if (target > 0.01) {
-          status.textContent = 'Seeking to the requested time…';
-          video.currentTime = target;
-        } else {
-          reveal();
-        }
+      if (!started && video.buffered.length) {
+        started = true;
+        status.textContent = 'Playing while footage arrives';
+        video.play().catch(() => {
+          if (request === controller && video.paused) {
+            status.textContent = complete ? 'Capture complete. Press Play.' : 'Press Play to watch with audio.';
+          }
+        });
       }
     }
     complete = true;
     if (source.readyState === 'open') source.endOfStream();
-    if (request === controller && !started && !seeking) status.textContent = 'Capture ended before the selected time.';
-    if (request === controller && started && !video.paused) status.textContent = 'Capture complete';
+    if (request === controller) {
+      status.textContent = started
+        ? (video.paused ? 'Capture complete. Press Play.' : 'Capture complete')
+        : 'No playable footage received.';
+    }
   } catch (error) {
     if (request === controller && !request.signal.aborted) status.textContent = error.message;
     request.abort();
@@ -107,7 +105,6 @@ form.addEventListener('submit', async event => {
 });
 
 function jog(seconds) {
-  if (video.style.visibility === 'hidden') return;
   for (let i = 0; i < video.buffered.length; i++) {
     const start = video.buffered.start(i), end = video.buffered.end(i);
     if (video.currentTime >= start && video.currentTime <= end) {
