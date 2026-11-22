@@ -63,6 +63,13 @@ Develop an **independent Linux CCTV server** with a **modern browser-based full 
 - \`WebCtrlLite.ocx\` exposed method names including \`CheckConnect\`, \`OpenChannel\`, \`OpenChannelEx\`, \`CloseChannel\`, \`OpenAll\`, \`OpenStream\`, \`CloseStream\`, \`SetDispWndDivMode\`, \`CaptureChlImage\`, \`GetChannelStatus\`, \`getCurChannelBitrate\`. \`SetCtlPtz\` appeared in strings but was **not** confirmed as a COM-dispatch method.
 - \`playbackwnd.ocx\` exposed names including \`ConnectRecServer\`, \`StartReplay\`, \`StartReplayEx\`, \`RecPlay\`, \`RecPause\`, \`RecStop\`, \`RecByFrame\`, \`GetPlayStatus\`, \`GetConnectStatus\`, \`RecFast\`, \`RecSlow\`, \`ConnectAndLogin\`. Provisional signatures: \`ConnectRecServer(BSTR address, int32 port)\`; \`StartReplay(int32 channels, int32 types, int32 start, int32 end, int32 cleanBuffer)\`. Exact dispatch-ID association was **not established**.
 
+### Additional notes from the original 5 November investigation
+
+- The NVR web client embedded a `client_ocx` object with CLSID `69AF533A-A219-452D-89B1-16A9E65D6AAA`. Both extracted OCXs exported `DllGetClassObject`, `DllRegisterServer` and `DllUnregisterServer`. The installer also contained `inst.bat`, `unst.bat`, `WebCtrlLiteSettings.ini` and `playbackwndmsg.ini`.
+- The live-control type library also listed `CloseChannelEx`. The playback type library named the class `PLAYBACKWND_KP2P.PlaybackwndCtrl.1` and listed `RecGetCurrentTimet` (spelling as observed).
+- The original TypeInfo inspection provisionally associated an `int32` return with `ConnectRecServer` and a `void` return with `StartReplay`. The dispatch-ID associations and the encoding of the legacy COM start and end parameters remain unverified. These are observations from the legacy type library.
+- The EseeCloud CodeView record gave a PDB age of 3. The candidate `cms.pdb` was approximately 9.8 MiB. Its identity remains unverified.
+
 ### Individual camera webpage evidence
 
 - Previously supplied \`IPCamera.tar.gz\` camera-page archive contains \`IPcamera.htm\`, \`function.js\`, CSS, Flash and other resources. It remains **private** and has not been published.
