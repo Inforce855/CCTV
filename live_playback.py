@@ -6,6 +6,8 @@ import json
 from pathlib import Path
 import secrets
 import struct
+import subprocess
+import tempfile
 import time
 
 from cryptography.hazmat.primitives.ciphers import Cipher, algorithms, modes
@@ -102,7 +104,7 @@ def expect_reply(socket, session, stage, transport_commands, app_command=None):
     raise TimeoutError(f"{stage}: no expected reply (received {', '.join(sorted(seen)) or 'no protocol commands'})")
 
 
-def receive_clip(url, username, password, channel, start, end, kinds, output):
+def receive_clip(url, username, password, channel, start, end, kinds, output, timestamps=None):
     session = secrets.randbelow(10_000) + 1
     with connect(url, open_timeout=8, close_timeout=2, ping_interval=None,
                  compression=None, max_size=2 * 1024 * 1024, proxy=None) as socket:
@@ -117,6 +119,7 @@ def receive_clip(url, username, password, channel, start, end, kinds, output):
         send(socket, transport(19, session, replay))
         count = 0
         first = last = first_in_range = None
+        first_in_range_wait = None
         before_start = in_range = keyframes = 0
         stop_reason = "deadline"
         capture_started = time.monotonic()
@@ -135,6 +138,8 @@ def receive_clip(url, username, password, channel, start, end, kinds, output):
                 first = frame.timestamp_ms if first is None else first
                 last = frame.timestamp_ms
                 output.write(frame.data)
+                if timestamps is not None:
+                    timestamps.append(frame.timestamp_ms)
                 count += 1
                 keyframes += frame.frame_type == 1
                 if frame.timestamp_ms < start * 1000:
@@ -142,6 +147,7 @@ def receive_clip(url, username, password, channel, start, end, kinds, output):
                 else:
                     if first_in_range is None:
                         first_in_range = frame.timestamp_ms
+                        first_in_range_wait = round(time.monotonic() - capture_started, 3)
                     in_range += 1
         finally:
             try:
@@ -155,7 +161,39 @@ def receive_clip(url, username, password, channel, start, end, kinds, output):
         "first_timestamp_ms": first, "last_timestamp_ms": last,
         "frames_before_start": before_start, "frames_in_range": in_range,
         "first_in_range_ms": first_in_range, "stop_reason": stop_reason,
+        "seconds_to_first_in_range": first_in_range_wait,
     }
+
+
+def packet_expression(values, offset=0):
+    if len(values) == 1:
+        return str(values[0])
+    mid = len(values) // 2
+    lower = packet_expression(values[:mid], offset)
+    upper = packet_expression(values[mid:], offset + mid)
+    return f"if(lt(N\\,{offset + mid})\\,{lower}\\,{upper})"
+
+
+def write_mp4(source, timestamps, destination):
+    if not 2 <= len(timestamps) <= 1500:
+        raise ValueError("Timestamped MP4 requires between 2 and 1,500 frames")
+    offsets = [timestamp - timestamps[0] for timestamp in timestamps]
+    durations = [end - start for start, end in zip(offsets, offsets[1:])]
+    if min(durations) <= 0:
+        raise ValueError("MP4 requires strictly increasing frame timestamps")
+    durations.append(durations[-1])
+    timing = (
+        f"setts=time_base=1/1000:ts={packet_expression(offsets)}:"
+        f"duration={packet_expression(durations)}"
+    )
+    source.seek(0)
+    with tempfile.NamedTemporaryFile(suffix=".mp4", dir=destination.parent) as staged:
+        subprocess.run([
+            "ffmpeg", "-nostdin", "-v", "error", "-xerror", "-y",
+            "-f", "hevc", "-i", "pipe:0", "-c:v", "copy", "-bsf:v", timing,
+            "-tag:v", "hvc1", "-movflags", "+faststart", staged.name,
+        ], stdin=source, check=True)
+        destination.hardlink_to(staged.name)
 
 
 def parse_time(value):
@@ -169,7 +207,7 @@ def main():
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("host", help="NVR IP address or LAN hostname")
     parser.add_argument("start", help="ISO start date and time including UTC offset")
-    parser.add_argument("output", type=Path, help="New raw HEVC output file")
+    parser.add_argument("output", type=Path, help="New .mp4 or raw .h265 output file")
     parser.add_argument("--channel", type=int, default=1, choices=range(1, 9))
     parser.add_argument("--seconds", type=int, default=10, choices=range(1, 31), metavar="1–30")
     parser.add_argument("--type", type=int, choices=(1, 2, 4, 8), default=1)
@@ -182,6 +220,18 @@ def main():
         if not 0 <= start <= 0xFFFFFFFF - args.seconds:
             raise ValueError("Start time is outside the NVR timestamp range")
         password = getpass.getpass("NVR password: ")
+        use_mp4 = args.output.suffix.lower() == ".mp4"
+        url = f"ws://{args.host}:10000/"
+        if use_mp4:
+            if args.output.exists():
+                raise FileExistsError(args.output)
+            timestamps = []
+            with tempfile.TemporaryFile() as output:
+                report = receive_clip(url, args.username, password, args.channel - 1,
+                                      start, start + args.seconds, args.type, output, timestamps)
+                write_mp4(output, timestamps, args.output)
+            print(json.dumps(report))
+            return
         with args.output.open("xb") as output:
             try:
                 report = receive_clip(f"ws://{args.host}:10000/", args.username, password,
@@ -190,6 +240,8 @@ def main():
                 args.output.unlink()
                 raise
         print(json.dumps(report))
+    except subprocess.CalledProcessError:
+        parser.exit(1, "Live playback error: FFmpeg could not package the clip\n")
     except (OSError, ValueError, WebSocketException) as exc:
         parser.exit(1, f"Live playback error: {exc}\n")
 
