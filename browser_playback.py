@@ -5,7 +5,7 @@ import os
 from queue import SimpleQueue
 import struct
 import subprocess
-from threading import Thread
+from threading import Event, Thread
 
 from websockets.exceptions import WebSocketException
 
@@ -39,6 +39,7 @@ def browser_stream(url, username, password, channel, start, end, kinds):
             ], stdin=subprocess.PIPE, stdout=subprocess.PIPE, pass_fds=(read_fd,)))
             audio_input.close()
             errors = []
+            complete = Event()
             video_queue, audio_queue = SimpleQueue(), SimpleQueue()
 
             def write_pipe(destination, queue):
@@ -69,6 +70,7 @@ def browser_stream(url, username, password, channel, start, end, kinds):
                             break
                         if frame.codec == "H265":
                             if frame.timestamp_ms >= end * 1000:
+                                complete.set()
                                 break
                             video_bytes += len(frame.data)
                             if video_bytes > MAX_OUTPUT:
@@ -99,7 +101,7 @@ def browser_stream(url, username, password, channel, start, end, kinds):
             for thread in threads:
                 thread.start()
             try:
-                yield first.timestamp_ms, process.stdout, process, errors
+                yield first.timestamp_ms, process.stdout, process, errors, complete
             finally:
                 if process.poll() is None:
                     process.terminate()
