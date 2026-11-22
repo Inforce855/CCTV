@@ -7,7 +7,7 @@ Developing an **independent Linux CCTV server**, a **modern browser-based NVR ma
 ## Current progress
 
 - Local NVR HTTP/WebSocket access and recording search demonstrated without manufacturer cloud dependence.
-- Recorded HEVC video and G.711A audio are retrievable through the local KP2P protocol; progressive browser recording playback and replay caching were tested. A native Camera 1 SD live-preview implementation is committed but still awaits physical-device verification.
+- Recorded HEVC video and G.711A audio are retrievable through local KP2P; progressive browser recording playback and replay caching are confirmed. Native Camera 1 SD video **and moving footage** were verified in Chrome on 22 November 2026. The same live path is now available for Cameras 2–4 SD; four simultaneous streams await physical testing.
 - Original vendor firmware decoded and extracted **offline** (Mission 11); cloud/startup paths and potential serial maintenance access analysed (Mission 12).
 - Hidden Telnet activation logic, the \`dbgmode\` command path, engineering interface and LUI command-dispatch architecture identified by **static analysis** (Mission 13). Physical 115200-baud UART and **interactive U-Boot access** were confirmed on 21 November 2026; an interactive Linux shell and runtime Telnet/SSH remain unverified.
 - Home Assistant Generic Camera snapshot access already works and must remain intact.
@@ -58,17 +58,17 @@ ffplay clip.mp4
 
 The test prompts for the NVR password and reports frame count and first/last original timestamps. An MP4 output requires FFmpeg and preserves relative NVR frame timing without re-encoding. It retains the decode lead-in and includes an AAC track when the capture provides G.711A audio in the clip window. The summary reports `g711a_frames` and `audio_in_mp4`. Use a .h265 output for the previous raw mode. The summary reports the wait from the start of the replay request to the first frame in range. The client sends a playback stop request at the end and closes the WebSocket. The mock WebSocket test passed. Live retrieval was verified on the physical NVR. The captured clip played cleanly in FFplay at 15 fps on Nobara. Exact seek alignment remains open.
 
-## Camera dashboard and experimental live preview (22 November 2026)
+## Four-camera SD live dashboard (22 November 2026)
 
-Start the existing gateway using the playback virtual environment (which includes `websockets` and `cryptography`), and ensure FFmpeg is installed. Open `http://127.0.0.1:8080/live` (substitute your local gateway port). The page shows the four NVR-connected cameras, a compact grid/single-camera layout and status refresh every 15 seconds.
+Start the existing gateway with the playback virtual environment (containing `websockets` and `cryptography`) and FFmpeg installed. Open `http://127.0.0.1:8080/live` (substitute your configured local port). The page shows the four cameras, their NVR connection status and compact grid/single-camera layouts.
 
-**First hardware test — Camera 1 SD only:** Click **Start SD live** in Camera 1's tile. This opens a new, authenticated KP2P live session and returns a 5 fps MJPEG image stream over the existing loopback HTTP gateway at `/api/live?channel=1&stream=1`. Click **Stop live** to close it. The stream is intentionally on-demand and limited to one active viewer to constrain CPU usage. Other cameras, HD quality and audio are not yet implemented. The page's SD/HD indicators for other tiles remain placeholders and HD switching is disabled.
+**Verified:** Tim viewed moving footage from Camera 1 SD in Chrome on 22 November 2026. Native KP2P session setup, continuous frame reception and the FFmpeg-to-MJPEG browser delivery work on that channel. The initial browser output uses **5 fps** from cameras configured for **800 × 448 at 15 fps**. This preview rate is intentional and does not change the NVR's stream or recording settings.
 
-The new `live_stream.py` reproduces the exact vendor JavaScript `import.js` live request: command 30, body `<3I` (zero-based channel, 0 main/1 substream, 2 start/1 stop), command 31 response; it reassembles live FRAM/FRAN video data. `live_preview.py` uses FFmpeg for HEVC/H.264-to-MJPEG conversion. This code and its synthetic packet regression tests are committed, but **the actual physical NVR live-stream path has not yet been verified**. Errors should be read from the gateway terminal; an HTTP 502 or browser image failure does not imply the NVR lacks live-stream support.
+**New extension, pending hardware verification:** Cameras **1–4** have individual **Start SD live / Stop live** controls, and the toolbar offers **Start all SD / Stop all**. Each active camera opens its own authenticated KP2P session and 5 fps MJPEG FFmpeg conversion at `/api/live?channel=N&stream=1` (N=1–4). The gateway limits each camera to **one active preview**, while permitting up to four distinct camera previews concurrently. The four-stream picture, NVR session capacity and CPU/memory/latency impact have **not yet been tested**; start Cameras 2–4 individually if diagnosing issues. In single-camera layout, other started streams remain active until stopped.
 
-Run offline protocol tests with `~/.venvs/cctv-playback/bin/python -m unittest discover -s tests -p 'test_live_stream.py' -v` from the repo root. Tests are supplied, not yet executed on the user's workstation.
+HD switching, camera audio and higher preview frame rates are not implemented yet. **Next:** verify all four SD pictures, then compare 5, 10 and 15 fps under simultaneous load. The existing `/playback`, replay cache, recording frame stepping, and other gateway functionality are preserved.
 
-The playback transport, existing `/playback` player and replay cache have not been altered. The live viewer does not change NVR settings or send PTZ commands.
+The original vendor `import.js` confirms the native request command 30, body `<3I` (zero-based channel, 0 main/1 substream, 2 start/1 stop) and response command 31. `live_stream.py` reassembles live frames, and `live_preview.py` converts HEVC/H.264 to MJPEG. Offline synthetic protocol regression tests are available with `~/.venvs/cctv-playback/bin/python -m unittest discover -s tests -p 'test_live_stream.py' -v`; they have not been executed here against your workstation.
 
 ## Browser playback preview
 
