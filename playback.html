@@ -23,6 +23,8 @@ video {display:block; width:100%; max-height:70vh; margin:1rem 0; background:#08
 <video controls playsinline></video>
 <nav aria-label="Buffered playback">
 <button id="back">−5 seconds</button><button id="ahead">+5 seconds</button>
+<button id="previous-frame" disabled>Previous frame</button>
+<button id="next-frame" disabled>Next frame</button>
 </nav>
 <script>
 const video = document.querySelector('video');
@@ -30,7 +32,50 @@ const status = document.querySelector('[role=status]');
 const leadNote = document.querySelector('#lead-in');
 const form = document.querySelector('form');
 const codec = 'video/mp4; codecs="avc1.42C01F,mp4a.40.2"';
-let controller, objectURL;
+// The progressive browser encoder produces a constant 15 fps preview.
+const frameDuration = 1 / 15;
+const previousFrame = document.querySelector('#previous-frame');
+const nextFrame = document.querySelector('#next-frame');
+let controller, objectURL, frameCallback, displayedTime;
+
+function stepTarget(direction) {
+  if (!video.paused || video.seeking || displayedTime === undefined) return;
+  const target = displayedTime + (direction + 0.25) * frameDuration;
+  for (let i = 0; i < video.buffered.length; i++) {
+    if (target >= video.buffered.start(i) && target < video.buffered.end(i)) return target;
+  }
+}
+
+function updateFrameButtons() {
+  previousFrame.disabled = stepTarget(-1) === undefined;
+  nextFrame.disabled = stepTarget(1) === undefined;
+}
+
+function watchFrames() {
+  if (!video.requestVideoFrameCallback) return;
+  if (frameCallback !== undefined) video.cancelVideoFrameCallback(frameCallback);
+  const onFrame = (_, metadata) => {
+    displayedTime = metadata.mediaTime;
+    updateFrameButtons();
+    frameCallback = video.requestVideoFrameCallback(onFrame);
+  };
+  frameCallback = video.requestVideoFrameCallback(onFrame);
+}
+
+function stepFrame(direction) {
+  const target = stepTarget(direction);
+  if (target === undefined) return;
+  displayedTime = undefined;
+  video.currentTime = target;
+  updateFrameButtons();
+}
+
+previousFrame.onclick = () => stepFrame(-1);
+nextFrame.onclick = () => stepFrame(1);
+video.addEventListener('seeking', updateFrameButtons);
+for (const event of ['play', 'pause', 'seeked', 'ended']) {
+  video.addEventListener(event, updateFrameButtons);
+}
 
 function append(buffer, data) {
   return new Promise((resolve, reject) => {
@@ -59,7 +104,10 @@ form.addEventListener('submit', async event => {
   objectURL = URL.createObjectURL(source);
   video.pause();
   leadNote.hidden = true;
+  displayedTime = undefined;
   video.src = objectURL;
+  updateFrameButtons();
+  watchFrames();
   status.textContent = 'Waiting for the NVR…';
   try {
     const response = await fetch('/api/playback?' + params, {signal:request.signal});
@@ -82,6 +130,7 @@ form.addEventListener('submit', async event => {
       const {value, done} = await reader.read();
       if (done) break;
       await append(buffer, value);
+      updateFrameButtons();
       if (!started && video.buffered.length) {
         started = true;
         status.textContent = 'Playing while footage arrives';
@@ -113,7 +162,9 @@ function jog(seconds) {
   for (let i = 0; i < video.buffered.length; i++) {
     const start = video.buffered.start(i), end = video.buffered.end(i);
     if (video.currentTime >= start && video.currentTime <= end) {
+      displayedTime = undefined;
       video.currentTime = Math.max(start, Math.min(end - 0.01, video.currentTime + seconds));
+      updateFrameButtons();
       break;
     }
   }
