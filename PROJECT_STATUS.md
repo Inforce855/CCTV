@@ -106,7 +106,7 @@ Develop an **independent Linux CCTV server** with a **modern browser-based full 
 
 ## LAN playback client (22 November 2026)
 
-- Added [live_playback.py](live_playback.py) for bounded, authenticated single-camera replay on the NVR LAN. A mock WebSocket handshake and replay using the private capture returned all nine reference frames exactly and verified that the client sent replay STOP. A live Nobara run on the physical NVR succeeded after allowing priority transport login replies. Camera 2 returned 240 HEVC frames spanning 15.933 seconds at about 15 fps. The first and last frame were 18.506 and 2.573 seconds before the requested start respectively. This verifies retrieval. Exact seek alignment and decoding of the saved clip remain to be confirmed.
+- Added [live_playback.py](live_playback.py) for bounded, authenticated single-camera replay on the NVR LAN. A mock WebSocket handshake and replay using the private capture returned all nine reference frames exactly and verified that the client sent replay STOP. A live Nobara run on the physical NVR succeeded after allowing priority transport login replies. Camera 2 returned 240 HEVC frames spanning 15.933 seconds at about 15 fps. The first and last frame were 18.506 and 2.573 seconds before the requested start respectively. This verifies retrieval. The saved clip played cleanly in FFplay at 15 fps on Nobara. Exact seek alignment remains open.
 
 ## COMPLETED — REMAINING — NEXT ACTION
 
@@ -114,7 +114,7 @@ Develop an **independent Linux CCTV server** with a **modern browser-based full 
 
 **REMAINING:** Verify **interactive Linux shell** and runtime mounts when hardware access is next needed; establish on-demand SSH/Telnet only if safe without persistent changes; observe external cloud egress passively; develop continuous local stream receiver, full playback/download, complete browser interface and HA integration. Optional future task: identify feasible LUI/HDMI customisation.
 
-**NEXT ACTION:** Decode the live smoke-test clip and establish why the returned timestamps preceded the requested range before implementing precise seeking.
+**NEXT ACTION:** Establish why the returned frame timestamps preceded the requested range before implementing precise seeking.
 
 ## Documentation and security rules
 
