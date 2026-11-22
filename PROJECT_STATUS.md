@@ -294,13 +294,20 @@ Develop an **independent Linux CCTV server** with a **modern browser-based full 
 - **Preferred minimal evaluation, not a committed architecture switch:** Keep the existing gateway/UI and NVR playback path. On one camera only, try read-only direct RTSP/ONVIF discovery/connection (without guessing credentials or modifying camera/NVR settings); verify source video fps/timestamps, quality, latency, CPU and stability against the working NVR SD path. If superior, replace only the source used by the existing live gateway, leave recordings served from NVR and retain working KP2P live as fallback. Avoid new servers/services or exposing snapshot credential tokens in browser URLs/GitHub. Do **not** remove or alter the existing verified live implementation unless direct access is demonstrated and approved.
 - **Status:** Design option discussed, **not yet implemented or hardware-verified**. No gateway code changes made here.
 
+## Direct-camera browser Flash limitation and 5522-F-Q identification (22 November 2026)
+
+- **User-confirmed:** The individual **Hiseeu 5522-F-Q** camera's web interface requires **Flash for live video**. The direct HTTP `/snapshot.jpg` endpoint continues to work in Home Assistant. The user does **not** have the camera firmware; it is available, if at all, from Hiseeu, and user has not found public documentation specific to `5522-F-Q`. Do not require firmware extraction or a Flash player for the next test.
+- **Existing evidence:** `docs/CAMERA_HTTP_API.md` already records the saved web UI's `JaViewer.swf` and separate HTTP controls. Flash for the browser video pane **does not rule out** a camera exposing a separate RTSP or ONVIF interface. Hiseeu's other PoE camera manuals/support articles describe such streams, but are **not specific evidence** for this exact model. Public device lists include `GUANGZHOU / 5522-F` (without the `-Q` suffix); this possible model-family clue is not an exact match or confirmed chipset identity.
+- **Proposed single read-only check:** From the workstation, test **TCP port 554** on the known directly reachable camera (no credentials printed, no configuration changes). A successful TCP connection shows only a listening port, not RTSP compatibility or a valid media URL; a closed port does not exclude RTSP on a different port or ONVIF. Based on that result, inspect the camera's existing configuration or original saved web client for a verified stream URL, rather than guessing endpoints or changing firmware. Keep the working NVR live viewer and playback.
+- **Code status:** No gateway, decoder, camera or NVR changes. Hybrid direct-live/NVR-playback remains **unverified**.
+
 ## COMPLETED — REMAINING — NEXT ACTION
 
 **COMPLETED:** Original discovery and HTTP snapshot path; local NVR HTTP/WebSocket/recording-search tests; playable HEVC sample reconstruction; firmware XOR decoding/extraction; static cloud, startup, hidden maintenance and LUI audits; **physical UART boot capture and interactive U-Boot access**; NVR restored to operation; independent-server/browser/HA project architecture agreed.
 
 **REMAINING:** Verify **interactive Linux shell** and runtime mounts when hardware access is next needed; establish on-demand SSH/Telnet only if safe without persistent changes; observe external cloud egress passively; develop continuous local stream receiver, full playback/download, complete browser interface and HA integration. Optional future task: identify feasible LUI/HDMI customisation.
 
-**NEXT ACTION:** Test one individual camera's direct read-only RTSP/ONVIF live-video access, as already planned in camera API documentation, and compare its true frame rate and latency against the working NVR KP2P SD feed. If verified superior, consider using direct camera video for live view while preserving NVR recording playback/cache and the existing KP2P live fallback. No architecture switch has been made.
+**NEXT ACTION:** Check whether the directly reachable 5522-F-Q camera has a listening RTSP TCP port (554), without firmware or Flash. If present, verify an actual stream URL read-only before comparing direct-camera live timing with the working NVR KP2P feed. Preserve the four-camera live viewer and NVR recording playback/cache.
 
 ## Documentation and security rules
 
