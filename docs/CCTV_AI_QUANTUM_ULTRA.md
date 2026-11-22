@@ -2,7 +2,7 @@
  
 > **PARODY / FICTIONAL PRODUCT.** This is a joke marketing page for the [CCTV gateway project](../README.md), not a real product, security specification, codec, recording feature, pricing offer or implementation plan. None of the technologies or performance claims below has been implemented or verified.
  
-![CCTV AI Pro Max Quantum Ultra launch poster](marketing/quantum-ultra-launch.svg)
+![CCTV AI Pro Max Quantum Ultra parody advert showing A167 FT being AI-enhanced into a different foreign number plate](marketing/cctv_ai_quantum_hallucination_ad.png)
  
 ## Introducing the future of footage you haven't recorded yet
  
