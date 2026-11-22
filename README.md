@@ -58,6 +58,12 @@ ffplay clip.mp4
 
 The test prompts for the NVR password and reports frame count and first/last original timestamps. An MP4 output requires FFmpeg and preserves relative NVR frame timing without re-encoding. It retains the decode lead-in and includes an AAC track when the capture provides G.711A audio in the clip window. The summary reports `g711a_frames` and `audio_in_mp4`. Use a .h265 output for the previous raw mode. The summary reports the wait from the start of the replay request to the first frame in range. The client sends a playback stop request at the end and closes the WebSocket. The mock WebSocket test passed. Live retrieval was verified on the physical NVR. The captured clip played cleanly in FFplay at 15 fps on Nobara. Exact seek alignment remains open.
 
+## Live camera dashboard (interface groundwork)
+
+Start the existing gateway and open `http://127.0.0.1:8080/live` (or your configured local port). The new page displays four camera tiles and the NVR's actual connection indicators from the verified read-only `/api/status` endpoint. It includes four-camera and single-camera layouts, camera selection, and SD/HD *intended view* preferences. It refreshes status every 15 seconds while visible.
+
+**Live video is not implemented yet.** The NVR's native KP2P `open_stream` / `close_stream` calls are identified in vendor JavaScript but their packet encoding and continuous frame reception have not been validated in this Python gateway. The page makes no live-stream or camera-control requests and does not alter NVR encoding settings. The established `/playback` recording player remains unchanged. The next milestone is validating the KP2P live receiver, starting with Camera 1 SD.
+
 ## Browser playback preview
 
 Start the gateway with the playback virtual environment described above and open `http://127.0.0.1:8080/playback`. Enter the camera, recording type and local start time. The gateway streams 720p H.264 fragments progressively, using FFmpeg with libx264. Chrome retains the current clip's buffered video for short backwards and forwards jumps. Pause to use Previous frame and Next frame within buffered footage. Playback starts at the first available frame and displays the duration of any lead-in before the requested start.
