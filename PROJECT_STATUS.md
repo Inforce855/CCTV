@@ -314,13 +314,19 @@ Develop an **independent Linux CCTV server** with a **modern browser-based full 
 - **Next focused probe:** Send a read-only unauthenticated `DESCRIBE` to the camera RTSP root `/` with `Accept: application/sdp`; examine status and SDP. A 404 would mean only that root is not a valid media path, not that RTSP video is unavailable. Do not copy auth tokens into source, expose device URLs externally or enable RTMP.
 - **State:** Four-camera NVR KP2P SD live and NVR recorded playback remain verified and unchanged; direct-camera live route still pending path discovery and test.
 
+## Direct camera RTSP Digest authentication challenge confirmed (22 November 2026)
+
+- **User-verified:** An unauthenticated `DESCRIBE rtsp://<camera>:554/ RTSP/1.0` returned **`RTSP/1.0 401 Unauthorized`** and `WWW-Authenticate: Digest realm="happytimesoft", nonce="…"`, with server `happytime rtsp server 2.2`. This confirms **RTSP Digest authentication is required**, but does **not** establish whether root `/` names valid video media. An unauthenticated `OPTIONS` previously returned 200 and confirmed advertised DESCRIBE/SETUP/PLAY methods.
+- **Read-only next check:** Use the system's established curl RTSP/Digest support with `curl --digest --user admin --request DESCRIBE --include --max-time 8 rtsp://<camera>:554/` from the user's workstation, entering the camera's RTSP password interactively (blank if that is the user's known camera configuration). The `--user admin` form prompts instead of exposing a password in shell history, command arguments, or public project docs; avoid verbose tracing and don't publish credential-bearing RTSP URIs. A final `200` plus SDP confirms accessible media metadata, a final `401` indicates authentication still not accepted, and a final `404` after authentication means root is not a valid media resource. All outcomes still require confirming a playable video path and measured actual fps.
+- **Preserve:** Existing HA camera snapshots, verified NVR KP2P four-camera live view, recording playback/cache. No camera/NVR settings, application code, or RTMP controls changed.
+
 ## COMPLETED — REMAINING — NEXT ACTION
 
 **COMPLETED:** Original discovery and HTTP snapshot path; local NVR HTTP/WebSocket/recording-search tests; playable HEVC sample reconstruction; firmware XOR decoding/extraction; static cloud, startup, hidden maintenance and LUI audits; **physical UART boot capture and interactive U-Boot access**; NVR restored to operation; independent-server/browser/HA project architecture agreed.
 
 **REMAINING:** Verify **interactive Linux shell** and runtime mounts when hardware access is next needed; establish on-demand SSH/Telnet only if safe without persistent changes; observe external cloud egress passively; develop continuous local stream receiver, full playback/download, complete browser interface and HA integration. Optional future task: identify feasible LUI/HDMI customisation.
 
-**NEXT ACTION:** Camera 1 has positively responded to RTSP OPTIONS (200 OK; happytime rtsp server 2.2). Send read-only RTSP DESCRIBE to check whether root '/' supplies SDP or returns an actionable authentication/path status. Then establish a verified direct live URL and measure fps/latency before making any viewer changes. Preserve NVR live and playback.
+**NEXT ACTION:** The direct camera's unauthenticated RTSP DESCRIBE returned 401 Digest (realm happytimesoft). Retry DESCRIBE with interactive, private credentials; distinguish successful SDP from wrong authentication or invalid root media path. Only then establish a verified stream URL and compare direct live timing. Preserve NVR live, playback and HA snapshots.
 
 ## Documentation and security rules
 
