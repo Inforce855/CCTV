@@ -157,13 +157,20 @@ Develop an **independent Linux CCTV server** with a **modern browser-based full 
 - **Hardware test outstanding:** The actual NVR Camera 1 SD live request, ack, continuous packet framing, HEVC/H.264 decoding, picture quality and resource usage still need observation in Chrome. This is an **experimental** one-camera route; four-camera streaming, HD switching and audio remain outstanding. The proven replay code, cache and `/playback` remain unchanged.
 - **Next action:** Pull the latest main branch, restart the loopback gateway on port 8082, run the offline unit tests, open `/live` and press **Start SD live** on Camera 1. Record the browser result and any gateway error, then fix only what that test demonstrates.
 
+## Camera 1 SD browser live-picture milestone (22 November 2026, 17:07 GMT)
+
+- **Verified visually on the physical NVR in Chrome:** Tim's screenshot of `http://127.0.0.1:8082/live` at 17:07 shows a camera image with the NVR's timestamp overlay from Camera 1 and the page displaying **Stop live**, with all four camera channels reporting NVR connected. The compact four-tile layout fits on screen without scrolling. This confirms that the experimental native KP2P stream-open request, incoming frame handling, FFmpeg conversion and MJPEG browser rendering together delivered at least one actual Camera 1 SD image on the NVR LAN.
+- **Verification limits:** A screenshot does not establish continuous-frame cadence, latency, audio or long-term stability. Only Camera 1 SD video has been visually confirmed. Camera 2–4, HD switching and multistream capacity remain untested, as do live timing/performance. The user's reported success is noted; don't claim sustained 5 fps was measured.
+- **Preservation:** No further code changes made as part of recording this result. Playback, replay cache, single-camera frame stepping and HTTP status remain unchanged.
+- **Next action:** Confirm Camera 1 continues updating over time and stops cleanly; then extend the already working live receiver to other SD channels in the same `/live` dashboard. Evaluate aspect-ratio presentation with real feeds afterwards.
+
 ## COMPLETED — REMAINING — NEXT ACTION
 
 **COMPLETED:** Original discovery and HTTP snapshot path; local NVR HTTP/WebSocket/recording-search tests; playable HEVC sample reconstruction; firmware XOR decoding/extraction; static cloud, startup, hidden maintenance and LUI audits; **physical UART boot capture and interactive U-Boot access**; NVR restored to operation; independent-server/browser/HA project architecture agreed.
 
 **REMAINING:** Verify **interactive Linux shell** and runtime mounts when hardware access is next needed; establish on-demand SSH/Telnet only if safe without persistent changes; observe external cloud egress passively; develop continuous local stream receiver, full playback/download, complete browser interface and HA integration. Optional future task: identify feasible LUI/HDMI customisation.
 
-**NEXT ACTION:** Run offline native live protocol tests and the first actual Camera 1 SD preview in Chrome on the NVR LAN. Review the result before extending to other cameras; two-camera synchronised playback remains a later task.
+**NEXT ACTION:** Check continuous Camera 1 SD frame updates and clean Stop, then extend the verified native live-stream path to Cameras 2–4 SD. Browser multistream performance and HD remain to be tested; two-camera synchronised playback is a separate later task.
 
 ## Documentation and security rules
 
