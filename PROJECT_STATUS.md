@@ -228,13 +228,20 @@ Develop an **independent Linux CCTV server** with a **modern browser-based full 
 - The apparently similar sustained rate with 1–4 active streams makes an aggregate four-camera throughput collapse less likely, but does not demonstrate the NVR's true capture rate, eliminate per-stream processing limits, or measure browser latency. No native transport/decoder changes justified yet.
 - **Next narrow measurement:** Using existing frame `timestamp_ms` data, compare successive distinct NVR timestamps and monotonic arrival intervals, separately from FFmpeg input write and JPEG output rates. This can identify nominal camera timestamp cadence versus delayed/bursty delivery without altering the working stream or recording playback.
 
+## 5/10/15 fps comparison identifies probable FFmpeg input time-base mismatch (22 November 2026)
+
+- **User-verified measurements, independent of running camera count (1, 2, 3 or 4):** selected **5 fps → In 10.0 / Out 3.2 fps**; selected **10 fps → In 10.0 / Out 6.6 fps**; selected **15 fps → In 10.0 / Out 10.0 fps**. Sustained inbound frame throughput reported ~10 fps in every case.
+- **Specific code evidence:** `live_preview.py:preview_command(codec, source_fps, output_fps)` currently supplies `-framerate str(first.fps)` (camera metadata, nominally 15) for a raw H.264/HEVC pipe, followed by `-vf fps={5|10|15}`. If the pipe actually delivers 10 frames per second of wall-clock time while FFmpeg timestamps them at 15 fps, the expected wall-clock JPEG output is selected-rate × **10/15**: 3.33, 6.67 and 10.0 fps respectively. These values closely reproduce all three observations.
+- **Assessment:** This is strong evidence of a mismatch between the **assumed input frame timing** and **observed steady arrival throughput**, not evidence of a four-camera resource collapse. It does not yet prove whether the NVR creates 10 fps intrinsically, whether frames are lost or delayed upstream, or whether the NVR's embedded frame timestamps advance at 10 or 15 fps. It also does not yet explain the ~2-second relative latency compared with HA.
+- **Next narrow action:** Check the already available `LiveFrame.timestamp_ms` deltas from the original NVR source (or otherwise validate effective input time base), then correct FFmpeg input timestamps/clock handling so output selectors correspond to actual wall-clock fps. Avoid simply hardcoding 10 fps for every device/stream without verification. Preserve the proven four-camera KP2P receiver, NVR settings, replay and cache. No application code changed in response to these measurements.
+
 ## COMPLETED — REMAINING — NEXT ACTION
 
 **COMPLETED:** Original discovery and HTTP snapshot path; local NVR HTTP/WebSocket/recording-search tests; playable HEVC sample reconstruction; firmware XOR decoding/extraction; static cloud, startup, hidden maintenance and LUI audits; **physical UART boot capture and interactive U-Boot access**; NVR restored to operation; independent-server/browser/HA project architecture agreed.
 
 **REMAINING:** Verify **interactive Linux shell** and runtime mounts when hardware access is next needed; establish on-demand SSH/Telnet only if safe without persistent changes; observe external cloud egress passively; develop continuous local stream receiver, full playback/download, complete browser interface and HA integration. Optional future task: identify feasible LUI/HDMI customisation.
 
-**NEXT ACTION:** Run the new FPS-meter offline test and verify per-camera In (native video frame input) and Out (JPEG images sent) counters against the real four-camera NVR setup at 5, 10 and 15 fps. Compare actual values before changing pipeline buffering or codec settings; preserve the working recording playback and replay cache.
+**NEXT ACTION:** Verify effective input timing against existing NVR frame timestamps, then make the smallest FFmpeg time-base correction supported by the new 5/10/15 fps measurements (In ~10; Out ~3.2/6.6/10.0). Preserve all four working live streams and the established recording player/cache.
 
 ## Documentation and security rules
 
