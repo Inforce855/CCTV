@@ -1,6 +1,7 @@
 """Read-only HTTP gateway for the Hiseeu D8208-5."""
 import argparse
 import base64
+from collections import OrderedDict
 from datetime import date
 import getpass
 from itertools import chain
@@ -16,6 +17,10 @@ from urllib.parse import parse_qs, urlsplit
 from urllib.request import HTTPRedirectHandler, ProxyHandler, Request, build_opener
 
 
+MAX_CACHED_CLIPS = 4
+MAX_CACHED_CLIP_BYTES = 8 * 1024 * 1024
+
+
 class NoRedirects(HTTPRedirectHandler):
     def redirect_request(self, req, fp, code, msg, headers, newurl):
         return None
@@ -27,6 +32,7 @@ class Nvr:
         self.username = username
         self.password = password
         self.replay_lock = Lock()
+        self.replay_cache = OrderedDict()
         token = base64.b64encode(f"{username}:{password}".encode()).decode()
         self.authorization = f"Basic {token}"
         self.opener = build_opener(ProxyHandler({}), NoRedirects())
@@ -149,18 +155,33 @@ def handler(nvr, port):
                 self.reply(409, {"error": "Another recording is still loading. Try again shortly."})
                 return
             sent = False
+            key = (start, channel, seconds, kinds)
             try:
+                if key in nvr.replay_cache:
+                    first, media = nvr.replay_cache[key]
+                    nvr.replay_cache.move_to_end(key)
+                    self.send_response(200)
+                    self.send_header("Content-Type", "video/mp4")
+                    self.send_header("Content-Length", str(len(media)))
+                    self.send_header("X-First-Frame-MS", str(first))
+                    self.send_header("X-Replay-Cache", "hit")
+                    self.send_header("Cache-Control", "no-store")
+                    self.end_headers()
+                    sent = True
+                    self.wfile.write(media)
+                    return
                 host = urlsplit(nvr.origin).hostname
                 if ":" in host:
                     host = f"[{host}]"
                 with browser_stream(f"ws://{host}:10000/", nvr.username, nvr.password,
-                                    channel - 1, start, start + seconds, kinds) as (first, output, process, errors):
+                                    channel - 1, start, start + seconds, kinds) as (first, output, process, errors, complete):
                     boxes = mp4_boxes(output)
                     initial = next(boxes, None)
                     if initial is None:
                         raise ValueError("No browser video returned")
                     self.send_response(200)
                     self.send_header("Content-Type", "video/mp4")
+                    self.send_header("X-Replay-Cache", "miss")
                     self.send_header("Transfer-Encoding", "chunked")
                     self.send_header("Connection", "close")
                     self.close_connection = True
@@ -168,9 +189,19 @@ def handler(nvr, port):
                     self.send_header("Cache-Control", "no-store")
                     self.end_headers()
                     sent = True
+                    cached = bytearray()
                     for box in chain((initial,), boxes):
+                        if cached is not None:
+                            if len(cached) + len(box) <= MAX_CACHED_CLIP_BYTES:
+                                cached.extend(box)
+                            else:
+                                cached = None
                         self.wfile.write(f"{len(box):X}\r\n".encode() + box + b"\r\n")
                     if process.wait() == 0 and not errors:
+                        if complete.is_set() and cached:
+                            nvr.replay_cache[key] = (first, cached)
+                            if len(nvr.replay_cache) > MAX_CACHED_CLIPS:
+                                nvr.replay_cache.popitem(last=False)
                         self.wfile.write(b"0\r\n\r\n")
             except (BrokenPipeError, ConnectionResetError):
                 pass
