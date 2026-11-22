@@ -115,6 +115,8 @@ Develop an **independent Linux CCTV server** with a **modern browser-based full 
 
 - The LAN client can now package a bounded replay as HEVC MP4 using its original relative NVR frame timestamps. FFprobe verified all nine fixture timestamps and FFmpeg decoded after seeking. The client also measures time to the first in-range frame. Live MP4 output succeeded on Nobara after preserving FFmpeg’s packet time base. Camera 2 yielded 428 frames (278 lead-in, 150 in range) and three keyframes. The first in-range frame was 27 ms after the requested start and arrived 23.386 seconds after replay began. The command took 35.414 seconds overall and stopped at the end timestamp. The automatically generated MP4 loaded, played and sought without corruption in both VLC and GNOME Videos on Nobara.
 
+- The playback client now aligns the observed 8 kHz mono G.711A audio with the HEVC timestamps and encodes audio to AAC in MP4. Offline capture tests verified both streams and unchanged video timestamps, plus video-only fallback. Live camera audio remains to be verified.
+
 ## COMPLETED — REMAINING — NEXT ACTION
 
 **COMPLETED:** Original discovery and HTTP snapshot path; local NVR HTTP/WebSocket/recording-search tests; playable HEVC sample reconstruction; firmware XOR decoding/extraction; static cloud, startup, hidden maintenance and LUI audits; **physical UART boot capture and interactive U-Boot access**; NVR restored to operation; independent-server/browser/HA project architecture agreed.
