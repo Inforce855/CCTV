@@ -64,6 +64,7 @@ form.addEventListener('submit', async event => {
   try {
     const response = await fetch('/api/playback?' + params, {signal:request.signal});
     if (!response.ok) throw new Error((await response.json()).error);
+    const cachedReplay = response.headers.get('X-Replay-Cache') === 'hit';
     const origin = response.headers.get('X-First-Frame-MS');
     if (origin && Number.isFinite(Number(origin))) {
       const lead = (requested - Number(origin)) / 1000;
@@ -94,6 +95,10 @@ form.addEventListener('submit', async event => {
     complete = true;
     if (source.readyState === 'open') source.endOfStream();
     if (request === controller) {
+      if (cachedReplay && started) {
+        status.textContent = video.paused ? 'Loaded from replay cache. Press Play.' : 'Loaded from replay cache.';
+        return;
+      }
       status.textContent = started
         ? (video.paused ? 'Capture complete. Press Play.' : 'Capture complete')
         : 'No playable footage received.';
