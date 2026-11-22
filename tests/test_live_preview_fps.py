@@ -1,4 +1,8 @@
 """Offline tests for per-camera live preview frame-rate selection."""
+import shutil
+import subprocess
+import tempfile
+from pathlib import Path
 import unittest
 
 from gateway import live_preview_query
@@ -54,10 +58,12 @@ class LivePreviewRateTests(unittest.TestCase):
                     effective_live_input_fps(15, stream, 800, 448), expected
                 )
         command = preview_command(
-            "H265", effective_live_input_fps(15, 1, 800, 448), 10
+            "H265", effective_live_input_fps(15, 1, 800, 448), 10,
+            retime_input=True
         )
         self.assertEqual(command[command.index("-framerate") + 1], "10")
-        self.assertEqual(command[command.index("-vf") + 1], "fps=10")
+        self.assertEqual(command[command.index("-vf") + 1],
+                         "setpts=N/(10*TB),fps=10")
 
     def test_unknown_live_profiles_retain_advertised_timebase(self):
         examples = ((10, 1, 800, 448), (15, 1, 1280, 720),
@@ -68,6 +74,34 @@ class LivePreviewRateTests(unittest.TestCase):
                     effective_live_input_fps(advertised, stream, width, height),
                     advertised
                 )
+
+    def test_real_hevc_filter_retimestamps_decoded_frames(self):
+        """Exercise FFmpeg itself: demuxer -framerate alone is insufficient."""
+        if not shutil.which("ffmpeg"):
+            self.skipTest("FFmpeg not installed")
+        with tempfile.TemporaryDirectory() as directory:
+            raw_file = Path(directory) / "frames.h265"
+            generated = subprocess.run([
+                "ffmpeg", "-hide_banner", "-loglevel", "error",
+                "-f", "lavfi", "-i", "testsrc2=size=64x64:rate=15",
+                "-frames:v", "30", "-c:v", "libx265",
+                "-preset", "ultrafast",
+                "-x265-params", "log-level=error:pools=1:frame-threads=1",
+                "-f", "hevc", "-y", str(raw_file),
+            ], capture_output=True, timeout=25, check=False)
+            if generated.returncode:
+                self.skipTest("FFmpeg libx265 encoder unavailable")
+            source = raw_file.read_bytes()
+            for fps, expected in ((5, 15), (10, 30), (15, 45)):
+                with self.subTest(fps=fps):
+                    result = subprocess.run(
+                        preview_command("H265", 10, fps, retime_input=True),
+                        input=source, capture_output=True, timeout=25,
+                        check=True,
+                    )
+                    # JPEG SOI marker occurs once per image; JPEG entropy
+                    # data escapes literal 0xff bytes.
+                    self.assertEqual(result.stdout.count(b"\\xff\\xd8"), expected)
 
     def test_invalid_ffmpeg_rate_rejected(self):
         for fps in (0, 1, 7, 16, 100):
