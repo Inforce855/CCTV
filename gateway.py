@@ -32,6 +32,7 @@ class Nvr:
         self.username = username
         self.password = password
         self.replay_lock = Lock()
+        self.live_lock = Lock()
         self.replay_cache = OrderedDict()
         token = base64.b64encode(f"{username}:{password}".encode()).decode()
         self.authorization = f"Basic {token}"
@@ -131,6 +132,54 @@ def handler(nvr, port):
             self.send_header("Cache-Control", "no-store")
             self.end_headers()
             self.wfile.write(data)
+
+        def live(self, query):
+            """Experimental read-only, on-demand Camera 1 SD MJPEG preview."""
+            try:
+                values = parse_qs(query, max_num_fields=2, keep_blank_values=True)
+                if (set(values) != {"channel", "stream"} or
+                        any(len(items) != 1 for items in values.values()) or
+                        values["channel"] != ["1"] or values["stream"] != ["1"]):
+                    raise ValueError
+            except ValueError:
+                self.reply(400, {"error": "First test supports Camera 1 SD only"})
+                return
+            if not nvr.live_lock.acquire(blocking=False):
+                self.reply(409, {"error": "A live preview is already running"})
+                return
+            started = False
+            try:
+                from live_preview import mjpeg_preview
+                host = urlsplit(nvr.origin).hostname
+                if ":" in host:
+                    host = f"[{host}]"
+                with mjpeg_preview(f"ws://{host}:10000/", nvr.username, nvr.password,
+                                   0, 1) as (images, errors):
+                    first = next(images, None)
+                    if first is None:
+                        raise ValueError("No JPEG received from live video")
+                    self.send_response(200)
+                    self.send_header("Content-Type", "multipart/x-mixed-replace; boundary=frame")
+                    self.send_header("Cache-Control", "no-store, no-cache, must-revalidate")
+                    self.send_header("Connection", "close")
+                    self.close_connection = True
+                    self.end_headers()
+                    started = True
+                    for frame in chain((first,), images):
+                        self.wfile.write(
+                            b"--frame\r\nContent-Type: image/jpeg\r\nContent-Length: " +
+                            str(len(frame)).encode() + b"\r\n\r\n" + frame + b"\r\n"
+                        )
+                    if errors:
+                        self.log_message("Live preview source error: %s", errors[0])
+            except (BrokenPipeError, ConnectionResetError):
+                pass
+            except Exception as error:
+                self.log_message("Live preview error: %s", error)
+                if not started:
+                    self.reply(502, {"error": "Could not start Camera 1 SD live preview"})
+            finally:
+                nvr.live_lock.release()
 
         def playback(self, query):
             try:
@@ -250,6 +299,12 @@ def handler(nvr, port):
                 self.send_header("Cache-Control", "no-store")
                 self.end_headers()
                 self.wfile.write(data)
+                return
+            if target.path == "/api/live":
+                if self.headers.get("Sec-Fetch-Site") != "same-origin":
+                    self.reply(403, {"error": "Open the local live page to view live video"})
+                    return
+                self.live(target.query)
                 return
             if target.path == "/api/playback":
                 if self.headers.get("Sec-Fetch-Site") != "same-origin":
