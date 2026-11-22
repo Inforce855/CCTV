@@ -117,6 +117,10 @@ Develop an **independent Linux CCTV server** with a **modern browser-based full 
 
 - The playback client now aligns the observed 8 kHz mono G.711A audio with the HEVC timestamps and encodes audio to AAC in MP4. Offline capture tests verified both streams and unchanged video timestamps, plus video-only fallback. Live Camera 2 MP4 playback on Nobara was confirmed with audible ambient wind. A second live clip (Camera 4, 19 November 2026, 07:51:46–07:52:15 GMT) included visible activity and corresponding audio. Tim confirmed that sound matched the video by ear. The exporter received 1,175 G.711A packets and 705 HEVC frames: 270 lead-in and 435 in range. The first in-range frame was 58 ms after the requested start and arrived 23.456 seconds after replay began. Total command time was 54.892 seconds. This is a subjective sync check; exact A/V offset remains unmeasured.
 
+## Progressive playback preparation
+
+- The replay client exposes an iterator that yields complete timestamped frames as they arrive. It sends replay STOP on exit. A mock WebSocket replay delivered the first complete De-Hulk keyframe while the source was still connected and confirmed STOP on early exit. The MP4 exporter uses the same receive path. Browser media delivery and playback controls remain to be implemented.
+
 ## COMPLETED — REMAINING — NEXT ACTION
 
 **COMPLETED:** Original discovery and HTTP snapshot path; local NVR HTTP/WebSocket/recording-search tests; playable HEVC sample reconstruction; firmware XOR decoding/extraction; static cloud, startup, hidden maintenance and LUI audits; **physical UART boot capture and interactive U-Boot access**; NVR restored to operation; independent-server/browser/HA project architecture agreed.
