@@ -56,7 +56,7 @@ python3 -m venv ~/.venvs/cctv-playback
 ffplay -f hevc clip.h265
 ```
 
-The test prompts for the NVR password and reports frame count and first/last original timestamps. The raw video preview uses the player's timing. The client sends a playback stop request at the end and closes the WebSocket. The mock WebSocket test passed. Live compatibility on the physical NVR still needs checking.
+The test prompts for the NVR password and reports frame count and first/last original timestamps. The raw video preview uses the player's timing. The client sends a playback stop request at the end and closes the WebSocket. The mock WebSocket test passed. Live retrieval was verified on the physical NVR. Exact seek alignment and local decoding of the live clip remain to be checked.
 
 ## Target application
 
