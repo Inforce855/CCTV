@@ -200,6 +200,13 @@ Develop an **independent Linux CCTV server** with a **modern browser-based full 
 - Tim observes the browser CCTV live view is **about two seconds behind his Home Assistant connection**. This is a relative, informal observation, not a measured end-to-end latency or a confirmed FFmpeg/browser defect. The precise HA stream path and delay measurement method have not been verified here.
 - **Decision:** Preserve the verified four-camera live functionality and defer speculative buffering/codec changes. Next obtain an objective frame-count/cadence and repeatable latency comparison before optimising the live preview. Investigate FFmpeg/browser buffering only if supported by measurements.
 
+## User screen recording review — 15 fps uncertainty (22 November 2026, 17:34 GMT)
+
+- Tim provided `Screencast_20261122_173453.webm`, a **20.314-second, 237 × 69 px** VP9 recording cropped to a camera on-screen timestamp and a small area of the static scene. The visible camera clock advances from approximately **17:34:50 to 17:35:10** on 22 November 2026.
+- Inspecting extracted frames confirmed small pixel changes in the static scene, but no clear moving object. Night-time background noise looked visually muted. The recording's nominal **60 fps screen-capture** metadata and its **681 decoded video frames** are attributes of the screencast, **not measurements of unique camera frames or MJPEG delivery cadence**.
+- **Conclusion:** The user-observed lack of grain animation and uncertainty about true 15 fps are legitimate questions; this clip does **not** establish a 15 fps native frame rate or prove a fault. The ~2-second relative delay previously observed against Home Assistant remains unmeasured. No speculative buffering/codec changes justified.
+- **Next diagnostic, when desired:** Measure unique frame arrival/cadence at the KP2P receiver and MJPEG output independently, alongside gateway-to-browser delay. Compare 5/10/15 fps without conflating FFmpeg's requested output cadence with unique incoming NVR frames. Existing four-camera operation and replay functionality are preserved.
+
 ## COMPLETED — REMAINING — NEXT ACTION
 
 **COMPLETED:** Original discovery and HTTP snapshot path; local NVR HTTP/WebSocket/recording-search tests; playable HEVC sample reconstruction; firmware XOR decoding/extraction; static cloud, startup, hidden maintenance and LUI audits; **physical UART boot capture and interactive U-Boot access**; NVR restored to operation; independent-server/browser/HA project architecture agreed.
