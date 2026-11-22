@@ -2,6 +2,20 @@
  
 > **PARODY / FICTIONAL PRODUCT.** This is a joke marketing page for the [CCTV gateway project](../README.md), not a real product, security specification, codec, recording feature, pricing offer or implementation plan. None of the technologies or performance claims below has been implemented or verified.
  
+**Official model: CCTV-QX427-AI™** — the descriptive designation for our completely fictional flagship surveillance system.
+
+| Model code | Totally scientific interpretation |
+| --- | --- |
+| **CCTV** | Continuous Cognitive Temporal Vision™ |
+| **Q** | Quantum Processing™ |
+| **X** | Extreme Hyper-Enhancement™ |
+| **4** | Up to four 4K cameras simultaneously |
+| **2** | Dual Quantum AI Engines™ |
+| **7** | Seven Generations Ahead™ |
+| **AI** | Artificially Invented™ |
+
+*Model numbers may be upgraded without upgrading the hardware. Available by subscription only.*
+
 ![CCTV AI Pro Max Quantum Ultra parody advert showing A167 FT being AI-enhanced into a different foreign number plate](marketing/cctv_ai_quantum_hallucination_ad.png)
  
 ## Introducing the future of footage you haven't recorded yet
