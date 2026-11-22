@@ -149,13 +149,21 @@ Develop an **independent Linux CCTV server** with a **modern browser-based full 
 
 - **Live UI sizing revision (22 November 2026):** Tim's Chrome screenshot verified all four NVR-connected indicators and the `/live` dashboard, but the original intrinsic 16:9 tile dimensions pushed the second row below the viewport. Revised `live.html` to use a viewport-height flex layout, a constrained 2×2 grid, compact headings/footers, and a collapsed implementation-note section. This change is committed but **awaits a browser recheck**. No live receiver or playback code was changed.
 
+## Native Camera 1 SD live-preview implementation (22 November 2026)
+
+- **Direct source evidence:** Recovered the original vendor `Netword video client.tar(1).gz` from the project archive and inspected its actual `import.js`. It explicitly defines KP2P live request command 30 / response 31, the 12-byte `channel, streamid, live_cmd` body (start 2 / stop 1), and live video frame parsing. This removes the uncertainty about the native live-stream request format; no additional protocol discovery is needed before the first hardware test.
+- **Committed:** `live_stream.py` implements authenticated native stream start/stop and live frame reassembly; `live_preview.py` transcodes one camera to a 5 fps MJPEG browser preview; `gateway.py` adds a same-origin, loopback, single-viewer `/api/live` endpoint; `live.html` adds a manual **Start SD live / Stop live** control in Camera 1. Stream credentials remain only in the gateway process. No configuration writes, PTZ requests or camera audio commands.
+- **Offline tests supplied, not yet run:** `tests/test_live_stream.py` exercises command encoding, a fragmented keyframe, transport length prefix and size/error boundaries using synthetic packets constructed from the vendor format. The source was reviewed, but the tests have **not** been executed in the user's local environment.
+- **Hardware test outstanding:** The actual NVR Camera 1 SD live request, ack, continuous packet framing, HEVC/H.264 decoding, picture quality and resource usage still need observation in Chrome. This is an **experimental** one-camera route; four-camera streaming, HD switching and audio remain outstanding. The proven replay code, cache and `/playback` remain unchanged.
+- **Next action:** Pull the latest main branch, restart the loopback gateway on port 8082, run the offline unit tests, open `/live` and press **Start SD live** on Camera 1. Record the browser result and any gateway error, then fix only what that test demonstrates.
+
 ## COMPLETED — REMAINING — NEXT ACTION
 
 **COMPLETED:** Original discovery and HTTP snapshot path; local NVR HTTP/WebSocket/recording-search tests; playable HEVC sample reconstruction; firmware XOR decoding/extraction; static cloud, startup, hidden maintenance and LUI audits; **physical UART boot capture and interactive U-Boot access**; NVR restored to operation; independent-server/browser/HA project architecture agreed.
 
 **REMAINING:** Verify **interactive Linux shell** and runtime mounts when hardware access is next needed; establish on-demand SSH/Telnet only if safe without persistent changes; observe external cloud egress passively; develop continuous local stream receiver, full playback/download, complete browser interface and HA integration. Optional future task: identify feasible LUI/HDMI customisation.
 
-**NEXT ACTION:** Verify the new `/live` dashboard in Chrome, then implement and test the native KP2P live receiver for Camera 1 SD. Two-camera synchronised playback remains a separate later task.
+**NEXT ACTION:** Run offline native live protocol tests and the first actual Camera 1 SD preview in Chrome on the NVR LAN. Review the result before extending to other cameras; two-camera synchronised playback remains a later task.
 
 ## Documentation and security rules
 
