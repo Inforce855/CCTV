@@ -164,13 +164,20 @@ Develop an **independent Linux CCTV server** with a **modern browser-based full 
 - **Preservation:** No further code changes made as part of recording this result. Playback, replay cache, single-camera frame stepping and HTTP status remain unchanged.
 - **Next action:** Confirm Camera 1 continues updating over time and stops cleanly; then extend the already working live receiver to other SD channels in the same `/live` dashboard. Evaluate aspect-ratio presentation with real feeds afterwards.
 
+## Continuous Camera 1 live video confirmed (22 November 2026)
+
+- Tim confirmed that the Camera 1 SD browser preview displayed **a car driving by and a person walking past**. This establishes motion and continuous frame updates on the physical NVR, beyond the earlier single-image screenshot. Duration, actual effective frame cadence, latency and Stop behaviour have not been measured.
+- The existing `live_preview.py` intentionally outputs MJPEG at **5 fps** (`-vf fps=5`), although the NVR's configured SD profiles are **15 fps at 800 × 448**. Tim reports movement looks very blurry/choppy at 5 fps; distinguish low frame cadence from SD resolution, JPEG compression and any true motion blur before diagnosing image quality.
+- **Agreed next work:** Extend the existing native live receiver to the other three SD cameras without altering proven replay functionality, then compare preview output at **5/10/15 fps** with four simultaneous feeds. Observe CPU, memory, latency and picture quality; consider full configured SD 15 fps as the target if the host can sustain it. Individual-camera HD may be evaluated later.
+- No claim is made that four feeds, higher fps or the planned deployment host have been tested.
+
 ## COMPLETED — REMAINING — NEXT ACTION
 
 **COMPLETED:** Original discovery and HTTP snapshot path; local NVR HTTP/WebSocket/recording-search tests; playable HEVC sample reconstruction; firmware XOR decoding/extraction; static cloud, startup, hidden maintenance and LUI audits; **physical UART boot capture and interactive U-Boot access**; NVR restored to operation; independent-server/browser/HA project architecture agreed.
 
 **REMAINING:** Verify **interactive Linux shell** and runtime mounts when hardware access is next needed; establish on-demand SSH/Telnet only if safe without persistent changes; observe external cloud egress passively; develop continuous local stream receiver, full playback/download, complete browser interface and HA integration. Optional future task: identify feasible LUI/HDMI customisation.
 
-**NEXT ACTION:** Check continuous Camera 1 SD frame updates and clean Stop, then extend the verified native live-stream path to Cameras 2–4 SD. Browser multistream performance and HD remain to be tested; two-camera synchronised playback is a separate later task.
+**NEXT ACTION:** Extend the now-verified continuously updating Camera 1 SD live path to Cameras 2–4 SD, then test all four at 5/10/15 fps and measure performance. Clean Stop behaviour and latency remain unmeasured; two-camera synchronised playback is a separate later task.
 
 ## Documentation and security rules
 
