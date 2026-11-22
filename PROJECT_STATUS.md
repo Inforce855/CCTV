@@ -333,13 +333,19 @@ Develop an **independent Linux CCTV server** with a **modern browser-based full 
 - **Remaining:** The SDP alone does not prove that `SETUP`/`PLAY` succeeds, nor the video resolution, actual frame cadence, stability or latency. The known user-entered camera password may or may not be blank; do not presume this or publish a populated RTSP URL.
 - **Next targeted check:** If the camera password is blank, use workstation FFprobe's TCP transport to inspect `rtsp://admin:@<camera>:554/` read-only. If not blank, first choose a private credential-handling method that avoids embedding the secret in shell history/process arguments. Record detected codec/resolution and actual source cadence separately. Keep original NVR live and replay implementations, and RTMP switch, unchanged.
 
+## Direct RTSP ffprobe playback attempt failed after successful SDP (22 November 2026)
+
+- **Confirmed results so far:** The camera's RTSP server returned `200 OK` with SDP for authenticated `DESCRIBE`, advertising H.265 video (`a=control:realvideo`) and G.711 A-law audio (`a=control:realaudio`). This establishes the metadata request, not SETUP/PLAY or playable frames.
+- **User's subsequent test:** `ffprobe -hide_banner -v error -rtsp_transport tcp -show_entries stream=codec_type,codec_name,width,height,r_frame_rate,avg_frame_rate -of default=noprint_wrappers=1 'rtsp://admin:@<camera>:554/'` failed quickly with **`Invalid data found when processing input`**; no stream fields. The provided URL supplies an **empty** password, which is not independently confirmed to be the same password used when the earlier Python Digest DESCRIBE succeeded. It is **not established** whether the failure is authentication, RTSP media resource handling, SDP parsing or TCP SETUP negotiation. Do not claim direct RTSP video playback works yet.
+- **Next targeted step:** Confirm whether the Python Digest check used a blank password. If yes, collect FFprobe's more informative `-loglevel verbose` diagnostic (avoid `trace` and publishing any Authorization header or passwords). If the Python check used a nonblank password, do not infer RTSP incompatibility from a test that sent an empty one; choose a private credential-handling method before retrying. Preserve both the working four-camera KP2P viewer and NVR playback; leave camera firmware, Flash and RTMP controls unchanged.
+
 ## COMPLETED — REMAINING — NEXT ACTION
 
 **COMPLETED:** Original discovery and HTTP snapshot path; local NVR HTTP/WebSocket/recording-search tests; playable HEVC sample reconstruction; firmware XOR decoding/extraction; static cloud, startup, hidden maintenance and LUI audits; **physical UART boot capture and interactive U-Boot access**; NVR restored to operation; independent-server/browser/HA project architecture agreed.
 
 **REMAINING:** Verify **interactive Linux shell** and runtime mounts when hardware access is next needed; establish on-demand SSH/Telnet only if safe without persistent changes; observe external cloud egress passively; develop continuous local stream receiver, full playback/download, complete browser interface and HA integration. Optional future task: identify feasible LUI/HDMI customisation.
 
-**NEXT ACTION:** Native authenticated RTSP DESCRIBE on Camera 1 succeeded with root-path SDP advertising H.265 video and PCMA audio. Verify actual SETUP/PLAY and report codec/resolution using a read-only FFprobe test with credentials handled privately. Then measure actual direct frame cadence and latency against NVR KP2P SD, preserving four-camera viewing, NVR playback/cache and HA snapshots.
+**NEXT ACTION:** The first FFprobe RTSP/TCP attempt failed with generic AVERROR_INVALIDDATA despite earlier valid authenticated SDP. First check whether the successful Python RTSP Digest DESCRIBE used a blank password; the FFprobe test used one. If yes, obtain a sanitised verbose FFprobe diagnostic to identify failure at authentication, SDP or SETUP. Do not change working NVR live, playback/cache, HA snapshots or camera RTMP settings.
 
 ## Documentation and security rules
 
