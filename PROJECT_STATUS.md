@@ -207,13 +207,21 @@ Develop an **independent Linux CCTV server** with a **modern browser-based full 
 - **Conclusion:** The user-observed lack of grain animation and uncertainty about true 15 fps are legitimate questions; this clip does **not** establish a 15 fps native frame rate or prove a fault. The ~2-second relative delay previously observed against Home Assistant remains unmeasured. No speculative buffering/codec changes justified.
 - **Next diagnostic, when desired:** Measure unique frame arrival/cadence at the KP2P receiver and MJPEG output independently, alongside gateway-to-browser delay. Compare 5/10/15 fps without conflating FFmpeg's requested output cadence with unique incoming NVR frames. Existing four-camera operation and replay functionality are preserved.
 
+## Live frame-rate instrumentation (22 November 2026)
+
+- **Goal:** Tim requested a real FPS meter after the 20-second 237×69 WebM crop could not establish whether 15 fps browser previews were displaying 15 native frames/s; he had also observed an approximately two-second lag relative to Home Assistant. Do not infer a decoding/buffering defect from the quiet night-time footage.
+- **Implemented in the existing gateway:** `LiveFpsMeter` maintains a monotonic-time five-second rolling count per camera for **source encoded video frames handed to FFmpeg** and **MJPEG JPEG images written to the HTTP browser response**. It records the requested 5/10/15 preview rate, counts total source/output frames and repeated successive NVR frame timestamps, resets on new stream/reconnect and reports inactive on stop. The read-only same-origin JSON route `/api/live/metrics` returns these per-camera measurements, without contacting the NVR again.
+- **UI:** `live.html` displays `In x.x · Out y.y fps` in each camera heading, polling every two seconds while visible. A stopped camera displays `FPS —`; values start as unknown until at least one second has elapsed. Both values are server-side counts. They **do not prove visually unique frame content**, Chrome's actual image render rate, or network-to-display latency; FFmpeg's fps filter can duplicate frames.
+- **Implementation scope:** Only `gateway.py`, `live_preview.py` and `live.html` were changed for instrumentation. Existing NVR KP2P frame parsing, FFmpeg encoding settings, 5/10/15 selectors, multistream start/stop, recording replay and cache remain intact. Instrumentation callback fires on successful input-pipe writes; output counter advances after successful HTTP multipart writes. `tests/test_live_fps_meter.py` added for rolling rates and lifecycle, but hardware testing and execution of the new unit tests on the user's Nobara environment are **still outstanding**. The browser JavaScript syntax was checked in the tool environment.
+- **Next action:** Pull GitHub and restart the existing gateway. Start all four cameras and record the measured **In / Out** figures at selected preview rates, especially 15 fps. Measure further only if the counters show evidence of duplication, dropping or buffering.
+
 ## COMPLETED — REMAINING — NEXT ACTION
 
 **COMPLETED:** Original discovery and HTTP snapshot path; local NVR HTTP/WebSocket/recording-search tests; playable HEVC sample reconstruction; firmware XOR decoding/extraction; static cloud, startup, hidden maintenance and LUI audits; **physical UART boot capture and interactive U-Boot access**; NVR restored to operation; independent-server/browser/HA project architecture agreed.
 
 **REMAINING:** Verify **interactive Linux shell** and runtime mounts when hardware access is next needed; establish on-demand SSH/Telnet only if safe without persistent changes; observe external cloud egress passively; develop continuous local stream receiver, full playback/download, complete browser interface and HA integration. Optional future task: identify feasible LUI/HDMI customisation.
 
-**NEXT ACTION:** Test the new independent 5/10/15 fps switches on the physical NVR: one camera at 10/15 fps and while running, then four concurrent streams at mixed/full rates. Observe CPU/memory, lag, smoothness and stop/restart; preserve proven recording playback, replay cache and frame stepping.
+**NEXT ACTION:** Run the new FPS-meter offline test and verify per-camera In (native video frame input) and Out (JPEG images sent) counters against the real four-camera NVR setup at 5, 10 and 15 fps. Compare actual values before changing pipeline buffering or codec settings; preserve the working recording playback and replay cache.
 
 ## Documentation and security rules
 
