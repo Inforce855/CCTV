@@ -136,7 +136,7 @@ Develop an **independent Linux CCTV server** with a **modern browser-based full 
 
 ## Paused frame stepping (22 November 2026)
 
-- The Chrome player has Previous frame and Next frame controls for buffered, paused playback. They use the last presented frame timestamp and the current preview’s 15 fps frame grid. A JavaScript test verified the requested targets round-trip three frames forward and three back and that the controls respect playback state and the buffered range. Tim confirmed both paused frame controls work in live Chrome after the clip has loaded. Exact frame identity after a three-forward, three-back round trip was not separately reported.
+- The Chrome player has Previous frame and Next frame controls for buffered, paused playback. They use the last presented frame timestamp and the current preview’s 15 fps frame grid. A JavaScript test verified the requested targets round-trip three frames forward and three back and that the controls respect playback state and the buffered range. Tim confirmed both paused frame controls work in live Chrome after the clip has loaded. Tim also confirmed visually that stepping back and then forward by the same number of frames returned to the starting point. His 15-step check agreed with the 15 fps preview cadence. This was a visual check, with no pixel comparison.
 
 ## COMPLETED — REMAINING — NEXT ACTION
 
@@ -144,7 +144,7 @@ Develop an **independent Linux CCTV server** with a **modern browser-based full 
 
 **REMAINING:** Verify **interactive Linux shell** and runtime mounts when hardware access is next needed; establish on-demand SSH/Telnet only if safe without persistent changes; observe external cloud egress passively; develop continuous local stream receiver, full playback/download, complete browser interface and HA integration. Optional future task: identify feasible LUI/HDMI customisation.
 
-**NEXT ACTION:** Confirm exact frame identity on a forward/backward round trip, then move on to synchronised two-camera playback.
+**NEXT ACTION:** Implement synchronised two-camera playback.
 
 ## Documentation and security rules
 
