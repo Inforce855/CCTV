@@ -301,13 +301,20 @@ Develop an **independent Linux CCTV server** with a **modern browser-based full 
 - **Proposed single read-only check:** From the workstation, test **TCP port 554** on the known directly reachable camera (no credentials printed, no configuration changes). A successful TCP connection shows only a listening port, not RTSP compatibility or a valid media URL; a closed port does not exclude RTSP on a different port or ONVIF. Based on that result, inspect the camera's existing configuration or original saved web client for a verified stream URL, rather than guessing endpoints or changing firmware. Keep the working NVR live viewer and playback.
 - **Code status:** No gateway, decoder, camera or NVR changes. Hybrid direct-live/NVR-playback remains **unverified**.
 
+## Direct camera TCP port 554 open; RTMP setup observed (22 November 2026)
+
+- **User-verified:** A TCP connection to the first directly reachable Hiseeu 5522-F-Q camera on port **554** succeeds. This is consistent with the conventional RTSP service port, but does **not yet prove that the listener is an RTSP server**, a particular media path works, or that the stream is 15 fps. Camera's existing web configuration includes an **RTMP switch (unchecked)** and an **RTMP URL field (blank)**; user has not enabled or modified either option.
+- **Assessment:** RTMP setup may allow the camera to **push** video to a specified RTMP streaming destination, a different workflow from **pulling RTSP video** for the CCTV browser gateway. Do not turn on RTMP, invent an RTMP server URL, expose credentials, or install Flash or camera firmware for this test.
+- **Next read-only step:** Send an unauthenticated `OPTIONS rtsp://<camera>:554/ RTSP/1.0` request via a local TCP socket. A returned RTSP status line (including `401 Unauthorized`) would show an RTSP-speaking listener; `200` may advertise supported methods in the `Public:` header. Record only non-sensitive response headers. This does not yet establish an actual stream path or access rights.
+- **Preserve:** Proven NVR KP2P four-camera live viewer, existing HA direct snapshots, NVR recording playback/cache. Direct-camera live video remains untested; no application code or camera/NVR configuration changes made.
+
 ## COMPLETED — REMAINING — NEXT ACTION
 
 **COMPLETED:** Original discovery and HTTP snapshot path; local NVR HTTP/WebSocket/recording-search tests; playable HEVC sample reconstruction; firmware XOR decoding/extraction; static cloud, startup, hidden maintenance and LUI audits; **physical UART boot capture and interactive U-Boot access**; NVR restored to operation; independent-server/browser/HA project architecture agreed.
 
 **REMAINING:** Verify **interactive Linux shell** and runtime mounts when hardware access is next needed; establish on-demand SSH/Telnet only if safe without persistent changes; observe external cloud egress passively; develop continuous local stream receiver, full playback/download, complete browser interface and HA integration. Optional future task: identify feasible LUI/HDMI customisation.
 
-**NEXT ACTION:** Check whether the directly reachable 5522-F-Q camera has a listening RTSP TCP port (554), without firmware or Flash. If present, verify an actual stream URL read-only before comparing direct-camera live timing with the working NVR KP2P feed. Preserve the four-camera live viewer and NVR recording playback/cache.
+**NEXT ACTION:** Port 554 is open on the 5522-F-Q camera. Confirm that it speaks RTSP with an unauthenticated read-only OPTIONS request, then identify a real stream URL and compare direct-camera fps/latency against NVR KP2P SD. Leave RTMP disabled and preserve the existing live viewer, HA snapshot integration and NVR playback/cache.
 
 ## Documentation and security rules
 
