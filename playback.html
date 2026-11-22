@@ -26,8 +26,7 @@ video {display:block; width:100%; max-height:70vh; margin:1rem 0; background:#08
 <nav aria-label="Playback controls">
 <button id="back" type="button" aria-label="Back five seconds">−5 sec</button>
 <button id="previous-frame" type="button" aria-label="Previous frame" title="Previous frame" disabled>&lt;</button>
-<button id="pause" type="button">Pause</button>
-<button id="play" type="button">Play</button>
+<button id="play-pause" type="button" aria-label="Play" title="Play">▶</button>
 <button id="next-frame" type="button" aria-label="Next frame" title="Next frame" disabled>&gt;</button>
 <button id="ahead" type="button" aria-label="Forward five seconds">+5 sec</button>
 </nav>
@@ -41,6 +40,7 @@ const codec = 'video/mp4; codecs="avc1.42C01F,mp4a.40.2"';
 const frameDuration = 1 / 15;
 const previousFrame = document.querySelector('#previous-frame');
 const nextFrame = document.querySelector('#next-frame');
+const playPause = document.querySelector('#play-pause');
 let controller, objectURL, frameCallback, displayedTime;
 
 function stepTarget(direction) {
@@ -174,12 +174,25 @@ function jog(seconds) {
     }
   }
 }
-document.querySelector('#pause').onclick = () => video.pause();
-document.querySelector('#play').onclick = () => {
-  if (!video.buffered.length) return;
-  video.play().catch(() => {
-    status.textContent = 'Unable to start playback.';
-  });
+function updatePlayPause() {
+  const playing = !video.paused && !video.ended;
+  const label = playing ? 'Pause' : 'Play';
+  playPause.textContent = playing ? '❚❚' : '▶';
+  playPause.setAttribute('aria-label', label);
+  playPause.title = label;
+}
+
+for (const event of ['play', 'pause', 'ended', 'emptied']) {
+  video.addEventListener(event, updatePlayPause);
+}
+playPause.onclick = () => {
+  if (!video.paused && !video.ended) {
+    video.pause();
+  } else if (video.buffered.length) {
+    video.play().catch(() => {
+      status.textContent = 'Unable to start playback.';
+    });
+  }
 };
 document.querySelector('#back').onclick = () => jog(-5);
 document.querySelector('#ahead').onclick = () => jog(5);
