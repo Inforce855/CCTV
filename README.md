@@ -71,6 +71,10 @@ The preview is single-camera with H.264 video and AAC audio, and uses a nominal 
 - **Home Assistant client:** Live monitoring, events/alerts, status and playback access through the same service; no dependency of core CCTV operations on Home Assistant.
 - **Preservation:** NVR remains the recorder and works without the new server; preserve its existing configuration and Home Assistant snapshot functionality.
 
+## The completely fictional marketing department
+
+For a deliberately absurd parody of AI CCTV advertising, see [CCTV AI Pro Max Quantum Ultra™](docs/CCTV_AI_QUANTUM_ULTRA.md) and its mock marketing posters. This is satire, **not** a real gateway feature or product.
+
 ## Technical guides
 
 - [Offline firmware decoding and extraction](docs/FIRMWARE_ANALYSIS.md) — exact verified model/firmware signature, XOR method, SquashFS offsets, serial console and maintenance evidence, with compatibility warnings.
