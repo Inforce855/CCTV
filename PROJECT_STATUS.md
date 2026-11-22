@@ -98,13 +98,19 @@ Develop an **independent Linux CCTV server** with a **modern browser-based full 
 - Local HTTP integration checks passed against a mock NVR, covering authenticated requests, camera ID joins, empty drive slots, recording query validation and upstream failure. Live smoke test passed from Nobara on the NVR LAN on 21 November 2026. Status returned one drive and four enabled, connected cameras reporting recording. Channel 1 recording search returned 12 rows from 63 matches, including timed and motion recordings.
 - The private Operation De-Hulk capture was recovered and reconstructed byte for byte against the known-good HEVC output. It is available as an offline regression fixture for the continuous receiver.
 
+## Offline playback receiver (22 November 2026)
+
+- [playback.py](playback.py) assembles complete KP2P replay frames from the private capture and retains original timestamps, frame type, channel and codec.
+- The HEVC output matched the nine-frame De-Hulk reference byte for byte and decoded without errors in FFmpeg. The parser also identified 22 G.711A audio frames and passed repeated-keyframe and truncation checks. The raw HEVC preview is video only.
+- Next verify the same receiver with a longer, authenticated single-camera playback session over the LAN. Measure delivery cadence and seek alignment before browser integration. Browser targets include typed time selection, exact forward/back frame stepping, short jumps, and synchronised multi-camera review.
+
 ## COMPLETED — REMAINING — NEXT ACTION
 
 **COMPLETED:** Original discovery and HTTP snapshot path; local NVR HTTP/WebSocket/recording-search tests; playable HEVC sample reconstruction; firmware XOR decoding/extraction; static cloud, startup, hidden maintenance and LUI audits; **physical UART boot capture and interactive U-Boot access**; NVR restored to operation; independent-server/browser/HA project architecture agreed.
 
 **REMAINING:** Verify **interactive Linux shell** and runtime mounts when hardware access is next needed; establish on-demand SSH/Telnet only if safe without persistent changes; observe external cloud egress passively; develop continuous local stream receiver, full playback/download, complete browser interface and HA integration. Optional future task: identify feasible LUI/HDMI customisation.
 
-**NEXT ACTION:** Build the continuous KP2P recording receiver using the private Operation De-Hulk fixture. Verify frame assembly and timestamp handling before integrating playback.
+**NEXT ACTION:** Connect the offline-verified frame assembler to a live KP2P playback session and verify a longer single-camera time range on the NVR LAN.
 
 ## Documentation and security rules
 
