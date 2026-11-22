@@ -108,6 +108,11 @@ Develop an **independent Linux CCTV server** with a **modern browser-based full 
 
 - Added [live_playback.py](live_playback.py) for bounded, authenticated single-camera replay on the NVR LAN. A mock WebSocket handshake and replay using the private capture returned all nine reference frames exactly and verified that the client sent replay STOP. A live Nobara run on the physical NVR succeeded after allowing priority transport login replies. Camera 2 returned 240 HEVC frames spanning 15.933 seconds at about 15 fps. The first and last frame were 18.506 and 2.573 seconds before the requested start respectively. This verifies retrieval. The saved clip played cleanly in FFplay at 15 fps on Nobara. A longer repeat reached the full requested interval. For a ten-second Camera 2 window, the NVR delivered 278 lead-in frames, then 150 in-range frames. The first in-range frame was 27 ms after the requested start and the client stopped on the end timestamp. The command took about 36 seconds overall. This confirms timestamp-based selection and documents the latency cost of the observed lead-in. The reason the NVR chose that starting keyframe remains unverified.
 
+## Seekable playback container (22 November 2026)
+
+- The raw HEVC live capture displayed grey corruption after backwards seeking in VLC and an erratic progress bar in GNOME Videos. The same live clip played and sought smoothly in VLC after remuxing to MP4 with copied HEVC and a generated 15 fps timeline. No re-encoding was needed for this test.
+- Use a seekable container for delivery. The 15 fps timing was specific to the test clip. Gateway integration should derive timing from the original NVR frame timestamps and preserve decoding lead-in for accurate seeks.
+
 ## COMPLETED — REMAINING — NEXT ACTION
 
 **COMPLETED:** Original discovery and HTTP snapshot path; local NVR HTTP/WebSocket/recording-search tests; playable HEVC sample reconstruction; firmware XOR decoding/extraction; static cloud, startup, hidden maintenance and LUI audits; **physical UART boot capture and interactive U-Boot access**; NVR restored to operation; independent-server/browser/HA project architecture agreed.
