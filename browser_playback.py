@@ -54,6 +54,7 @@ def browser_stream(url, username, password, channel, start, end, kinds):
             def feed():
                 audio_position = 0
                 video_end = 0
+                last_video_timestamp = first.timestamp_ms
                 video_bytes = 0
                 samples_per_ms = ALAW_RATE // 1000
                 limit = (end * 1000 - first.timestamp_ms) * samples_per_ms
@@ -76,6 +77,7 @@ def browser_stream(url, username, password, channel, start, end, kinds):
                             if video_bytes > MAX_OUTPUT:
                                 raise ValueError("Preview exceeded the video size limit")
                             video_queue.put(frame.data)
+                            last_video_timestamp = frame.timestamp_ms
                             video_end = min(limit, (frame.timestamp_ms - first.timestamp_ms + 67) * samples_per_ms)
                             silence_until(video_end - ALAW_RATE // 4)
                         elif frame.codec == "G711A" and frame.frame_type == 0:
@@ -87,6 +89,10 @@ def browser_stream(url, username, password, channel, start, end, kinds):
                                 audio_queue.put(data)
                                 audio_position += len(data)
                     silence_until(video_end)
+                    # The recorder can stop on the last in-range frame without
+                    # sending a frame at or beyond the exclusive end time.
+                    if end * 1000 - last_video_timestamp <= 100:
+                        complete.set()
                 except (OSError, ValueError, WebSocketException) as error:
                     errors.append(error)
                 finally:
