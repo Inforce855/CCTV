@@ -7,29 +7,29 @@
 <title>CCTV | Live cameras</title>
 <style>
 :root{font:15px system-ui,-apple-system,Segoe UI,sans-serif;color:#e8eff7;background:#101821}
-*{box-sizing:border-box}body{margin:0;min-height:100vh}button,a{font:inherit}
+*{box-sizing:border-box}body{margin:0;min-height:100vh;min-height:100dvh;display:flex;flex-direction:column}button,a{font:inherit}
 header{display:flex;align-items:center;justify-content:space-between;gap:1rem;padding:1rem 1.5rem;background:#162331;border-bottom:1px solid #2b4154;flex-wrap:wrap}
 h1{font-size:1.3rem;margin:0}header p{margin:.25rem 0 0;color:#a3b7c9;font-size:.88rem}
-nav{display:flex;gap:.75rem;align-items:center}a{color:#85d5ff}main{max-width:1600px;margin:auto;padding:1.3rem}
-.toolbar{display:flex;flex-wrap:wrap;align-items:center;gap:.7rem;margin-bottom:1rem}
+nav{display:flex;gap:.75rem;align-items:center}a{color:#85d5ff}main{width:100%;max-width:1800px;margin:0 auto;padding:.65rem 1rem;flex:1;min-height:0;display:flex;flex-direction:column}
+.toolbar{display:flex;flex-wrap:wrap;align-items:center;gap:.55rem;margin-bottom:.6rem;flex:none}
 button{background:#253b50;border:1px solid #3c5c74;color:#e8eff7;border-radius:.5rem;padding:.55rem .85rem;cursor:pointer}
 button:hover:not(:disabled){background:#33536e}button:focus-visible,a:focus-visible{outline:3px solid #63cfff;outline-offset:2px}
 button[aria-pressed=true]{background:#155877;border-color:#51cdfb}button:disabled{opacity:.55;cursor:not-allowed}
-#connection{margin-left:auto;color:#9eafbd;font-size:.87rem}.grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:1rem}
-.grid.single{grid-template-columns:minmax(0,1fr);max-width:1100px;margin:auto}
-.tile{min-width:0;border:2px solid #344b5c;border-radius:12px;overflow:hidden;background:#15212d}
+#connection{margin-left:auto;color:#9eafbd;font-size:.87rem}.grid{display:grid;flex:1;min-height:0;grid-template-columns:repeat(2,minmax(0,1fr));grid-template-rows:repeat(2,minmax(0,1fr));gap:.65rem}
+.grid.single{grid-template-columns:minmax(0,1fr);grid-template-rows:minmax(0,1fr);max-width:1300px;width:100%;margin:0 auto}
+.tile{min-width:0;min-height:0;display:grid;grid-template-rows:auto minmax(0,1fr) auto;border:2px solid #344b5c;border-radius:12px;overflow:hidden;background:#15212d}
 .tile.chosen{border-color:#55d2fe}.tile[hidden]{display:none!important}
-.tile-head{display:flex;align-items:center;justify-content:space-between;gap:.5rem;padding:.65rem .9rem}
+.tile-head{display:flex;align-items:center;justify-content:space-between;gap:.5rem;padding:.35rem .7rem}
 .tile-head h2{font-size:1rem;margin:0}.pill{display:inline-block;font-size:.75rem;color:#c7d5e3;padding:.25rem .6rem;border:1px solid #506477;border-radius:999px}
 .pill.online{color:#a4f5c2;border-color:#348960}.pill.offline{color:#f4b0ac;border-color:#a05154}
-.screen{position:relative;aspect-ratio:16/9;display:grid;place-items:center;text-align:center;background:linear-gradient(130deg,#111923,#172b3b);padding:1rem}
+.screen{position:relative;min-width:0;min-height:0;overflow:hidden;display:grid;place-items:center;text-align:center;background:linear-gradient(130deg,#111923,#172b3b);padding:.5rem}
 .screen::before{content:"";position:absolute;inset:0;opacity:.15;pointer-events:none;background-image:linear-gradient(#6a879a 1px,transparent 1px),linear-gradient(90deg,#6a879a 1px,transparent 1px);background-size:48px 48px}
 .placeholder{position:relative;max-width:40rem}.placeholder strong{display:block;font-size:1.05rem;margin-bottom:.45rem}
-.placeholder span{color:#99aec0;font-size:.87rem}.foot{display:flex;align-items:center;justify-content:space-between;gap:.5rem;padding:.6rem .8rem;flex-wrap:wrap}
+.placeholder span{color:#99aec0;font-size:.87rem}.foot{display:flex;align-items:center;justify-content:space-between;gap:.5rem;padding:.3rem .65rem;flex-wrap:wrap}
 .foot button{padding:.35rem .65rem;font-size:.85rem}.stream{color:#aac2d2;font-size:.84rem}
-.note{margin-top:1.25rem;padding:1rem 1.2rem;border:1px solid #355065;border-radius:9px;background:#172634;color:#b6c9d8}
+.note{flex:none;margin-top:.55rem;padding:.45rem .8rem;border:1px solid #355065;border-radius:9px;background:#172634;color:#b6c9d8;font-size:.85rem}.note summary{cursor:pointer;color:#e8eff7;font-weight:600}.note[open]{max-height:32vh;overflow:auto}
 .note p{margin:.4rem 0}.note strong{color:#e8eff7}
-@media(max-width:790px){.grid{grid-template-columns:1fr}main{padding:.7rem}header{padding:1rem}#connection{margin-left:0}}
+@media(max-width:790px){body{min-height:100dvh}main{min-height:600px}header{padding:.65rem}#connection{margin-left:0}.grid{grid-template-columns:1fr;grid-template-rows:repeat(4,minmax(160px,1fr))}.grid.single{grid-template-rows:minmax(360px,1fr)}main{padding:.5rem}.tile-head{padding:.35rem .6rem}}@media(max-height:600px) and (min-width:791px){header{padding:.45rem 1rem}header p{display:none}.toolbar{margin-bottom:.3rem}.tile-head{padding:.18rem .5rem}.foot{padding:.15rem .5rem}.note{margin-top:.3rem}}
 </style>
 </head>
 <body>
@@ -47,11 +47,11 @@ button[aria-pressed=true]{background:#155877;border-color:#51cdfb}button:disable
 <span id="connection" role="status" aria-live="polite">Checking NVR…</span>
 </div>
 <section id="cameras" class="grid" aria-label="CCTV cameras"></section>
-<div class="note">
-<strong>Live video transport not connected yet.</strong>
+<details class="note">
+<summary>Live video transport not connected yet — implementation notes</summary>
 <p>This is the first live-view interface, with real camera connectivity information from the verified read-only <code>/api/status</code> endpoint. No video, snapshots, PTZ, audio or light/siren commands are sent. The original KP2P live-stream receiver still needs to be implemented and tested.</p>
 <p>SD and HD currently select the <em>intended</em> preview profile only. They do not change NVR recording settings. Recording playback remains available using the existing player.</p>
-</div>
+</details>
 </main>
 <script>
 'use strict';
