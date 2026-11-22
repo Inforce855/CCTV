@@ -32,7 +32,8 @@ class Nvr:
         self.username = username
         self.password = password
         self.replay_lock = Lock()
-        self.live_lock = Lock()
+        # One active MJPEG viewer per camera; four independent KP2P sessions.
+        self.live_locks = tuple(Lock() for _ in range(4))
         self.replay_cache = OrderedDict()
         token = base64.b64encode(f"{username}:{password}".encode()).decode()
         self.authorization = f"Basic {token}"
@@ -134,18 +135,22 @@ def handler(nvr, port):
             self.wfile.write(data)
 
         def live(self, query):
-            """Experimental read-only, on-demand Camera 1 SD MJPEG preview."""
+            """Read-only, on-demand SD MJPEG preview for cameras 1–4."""
             try:
                 values = parse_qs(query, max_num_fields=2, keep_blank_values=True)
                 if (set(values) != {"channel", "stream"} or
                         any(len(items) != 1 for items in values.values()) or
-                        values["channel"] != ["1"] or values["stream"] != ["1"]):
+                        values["stream"] != ["1"]):
                     raise ValueError
-            except ValueError:
-                self.reply(400, {"error": "First test supports Camera 1 SD only"})
+                channel = int(values["channel"][0])
+                if not 1 <= channel <= 4:
+                    raise ValueError
+            except (ValueError, KeyError):
+                self.reply(400, {"error": "Use channel=1–4 and stream=1 (SD)"})
                 return
-            if not nvr.live_lock.acquire(blocking=False):
-                self.reply(409, {"error": "A live preview is already running"})
+            live_lock = nvr.live_locks[channel - 1]
+            if not live_lock.acquire(blocking=False):
+                self.reply(409, {"error": f"Camera {channel} SD preview is already running"})
                 return
             started = False
             try:
@@ -153,8 +158,9 @@ def handler(nvr, port):
                 host = urlsplit(nvr.origin).hostname
                 if ":" in host:
                     host = f"[{host}]"
+                self.log_message("Starting Camera %d SD live preview", channel)
                 with mjpeg_preview(f"ws://{host}:10000/", nvr.username, nvr.password,
-                                   0, 1) as (images, errors):
+                                   channel - 1, 1) as (images, errors):
                     first = next(images, None)
                     if first is None:
                         raise ValueError("No JPEG received from live video")
@@ -177,9 +183,10 @@ def handler(nvr, port):
             except Exception as error:
                 self.log_message("Live preview error: %s", error)
                 if not started:
-                    self.reply(502, {"error": "Could not start Camera 1 SD live preview"})
+                    self.reply(502, {"error": f"Could not start Camera {channel} SD live preview"})
             finally:
-                nvr.live_lock.release()
+                live_lock.release()
+                self.log_message("Stopped Camera %d SD live preview", channel)
 
         def playback(self, query):
             try:
