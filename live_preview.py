@@ -49,8 +49,8 @@ def mjpeg_preview(url, username, password, channel=0, stream=1):
         format_name = "hevc" if first.codec == "H265" else "h264"
         process = subprocess.Popen([
             "ffmpeg", "-hide_banner", "-nostdin", "-loglevel", "error",
-            "-fflags", "nobuffer", "-flags", "low_delay",
-            "-f", format_name, "-framerate", str(first.fps), "-i", "pipe:0",
+            "-f", format_name, "-framerate", str(first.fps),
+            "-probesize", "32768", "-analyzeduration", "1", "-i", "pipe:0",
             "-an", "-vf", "fps=5", "-c:v", "mjpeg", "-q:v", "6",
             "-f", "image2pipe", "pipe:1",
         ], stdin=subprocess.PIPE, stdout=subprocess.PIPE, stderr=subprocess.DEVNULL, bufsize=0)
