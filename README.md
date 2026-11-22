@@ -45,6 +45,19 @@ ffplay -framerate 10 -f hevc recovered.h265
 
 The 10 fps preview cadence matches the observed interval in this fixture. The JSON Lines output retains the exact timestamps for later playback integration. The capture is kept private. Live WebSocket playback is the next step.
 
+## Live playback smoke test
+
+From the repository on the NVR LAN, use a Python virtual environment for the test dependencies. Replace the example address and choose a start time within a known timed recording.
+
+```sh
+python3 -m venv ~/.venvs/cctv-playback
+~/.venvs/cctv-playback/bin/python -m pip install 'websockets>=16,<17' cryptography
+~/.venvs/cctv-playback/bin/python live_playback.py 192.168.1.100 2026-11-22T08:05:00+00:00 clip.h265 --channel 2 --seconds 10
+ffplay -f hevc clip.h265
+```
+
+The test prompts for the NVR password and reports frame count and first/last original timestamps. The raw video preview uses the player's timing. The client sends a playback stop request at the end and closes the WebSocket. The mock WebSocket test passed. Live compatibility on the physical NVR still needs checking.
+
 ## Target application
 
 - **Standalone Linux service:** Handles NVR/camera connections, stream delivery, recording search/playback, management functions and a local API, independently of Home Assistant.
